@@ -1,0 +1,16 @@
+# Rust
+priora-api/target/
+priora-api/*.db
+priora-api/*.db-*
+priora-api/.env
+priora-api/uploads/
+
+# Node
+priora-web/node_modules/
+priora-web/dist/
+priora-web/.env
+priora-web/.env.local
+priora-web/.env.*.local
+
+# OS
+.DS_Store

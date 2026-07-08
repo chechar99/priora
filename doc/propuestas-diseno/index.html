@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Priora — Propuestas de diseño</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f4f4f5;
+      color: #18181b;
+      min-height: 100vh;
+      padding: 3rem 1.5rem;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    .intro { color: #52525b; margin-bottom: 2.5rem; line-height: 1.6; }
+    .cards { display: flex; flex-direction: column; gap: 1rem; }
+    .card {
+      display: block;
+      background: white;
+      border: 1px solid #e4e4e7;
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
+    }
+    .card h2 { font-size: 1.25rem; margin-bottom: 0.35rem; }
+    .card p { color: #71717a; font-size: 0.95rem; line-height: 1.5; }
+    .tag {
+      display: inline-block;
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      background: #f4f4f5;
+      color: #52525b;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Priora — Propuestas de diseño</h1>
+    <p class="intro">
+      Tres direcciones visuales para la aplicación. Cada archivo incluye las pantallas
+      principales (inicio, detalle y priorizar) con datos de ejemplo. Abrí la que te interese
+      y usá las pestañas internas para navegar entre vistas.
+    </p>
+    <div class="cards">
+      <a class="card" href="propuesta-a-comunidad.html">
+        <h2>A — Comunidad cálida</h2>
+        <p>Tonos tierra y verdes suaves, formas redondeadas, sensación acogedora de barrio. Tipografía amigable y tarjetas con mucho aire.</p>
+        <span class="tag">Cálido · Orgánico · Vecinal</span>
+      </a>
+      <a class="card" href="propuesta-b-editorial.html">
+        <h2>B — Editorial moderno</h2>
+        <p>Tipografía serif de impacto, alto contraste, jerarquía clara tipo revista. Minimalista pero con personalidad fuerte.</p>
+        <span class="tag">Editorial · Tipográfico · Elegante</span>
+      </a>
+      <a class="card" href="propuesta-c-dashboard.html">
+        <h2>C — Panel cívico</h2>
+        <p>Layout con barra lateral, métricas visibles, estilo herramienta profesional. Ideal para comunidades activas con muchas propuestas.</p>
+        <span class="tag">Estructurado · Datos · Profesional</span>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

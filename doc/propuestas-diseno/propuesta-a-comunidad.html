@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Priora — Propuesta A: Comunidad cálida</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #faf6f0;
+      --surface: #ffffff;
+      --text: #2c2417;
+      --muted: #7a6f5f;
+      --primary: #3d7a4a;
+      --primary-light: #e8f2ea;
+      --accent: #c4654b;
+      --accent-light: #fdf0ec;
+      --border: #e8dfd0;
+      --warning: #b8860b;
+      --warning-bg: #fef9e7;
+      --shadow: 0 4px 24px rgba(44, 36, 23, 0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    /* Mockup chrome */
+    .mockup-bar {
+      background: #2c2417;
+      color: #faf6f0;
+      padding: 0.6rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+    }
+    .mockup-bar a { color: #d4c4a8; text-decoration: none; }
+    .mockup-bar a:hover { color: white; }
+    .screen-tabs {
+      display: flex;
+      gap: 0.35rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      overflow-x: auto;
+    }
+    .screen-tabs button {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      padding: 0.45rem 1rem;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .screen-tabs button.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* App layout */
+    .header {
+      background: var(--surface);
+      padding: 1.25rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--primary-light);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+    }
+    .header nav {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      font-size: 0.9rem;
+    }
+    .header nav a { color: var(--muted); text-decoration: none; font-weight: 500; }
+    .header nav a:hover { color: var(--primary); }
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #e8a090);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg);
+      padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+      border-radius: 999px;
+    }
+
+    .main { max-width: 880px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    .hero {
+      background: linear-gradient(135deg, var(--primary-light) 0%, var(--accent-light) 100%);
+      border-radius: 20px;
+      padding: 2rem 2.25rem;
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: '🏘️';
+      position: absolute;
+      right: 1.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 4rem;
+      opacity: 0.25;
+    }
+    .hero h1 { font-size: 1.85rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .hero p { color: var(--muted); max-width: 420px; }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .filters { display: flex; gap: 0.5rem; }
+    .filters button {
+      padding: 0.5rem 1.1rem;
+      border: none;
+      background: var(--surface);
+      border-radius: 12px;
+      font: inherit;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .filters button.active {
+      background: var(--primary);
+      color: white;
+    }
+    .actions { display: flex; gap: 0.6rem; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1.15rem;
+      border-radius: 12px;
+      font: inherit;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #326a3e; }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .proposal-list { display: flex; flex-direction: column; gap: 1rem; }
+    .proposal-card {
+      background: var(--surface);
+      border-radius: 18px;
+      padding: 1.35rem 1.5rem;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1.25rem;
+      box-shadow: var(--shadow);
+      transition: transform 0.15s;
+    }
+    .proposal-card:hover { transform: translateY(-2px); }
+    .rank-badge {
+      width: 52px;
+      height: 52px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .rank-badge.gold { background: #fef3c7; color: #b45309; }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+    .card-top h2 { font-size: 1.1rem; font-weight: 600; }
+    .card-top h2 a { color: inherit; text-decoration: none; }
+    .card-top h2 a:hover { color: var(--primary); }
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .badge-activa { background: var(--primary-light); color: var(--primary); }
+    .badge-analisis { background: var(--warning-bg); color: var(--warning); }
+    .excerpt { color: var(--muted); font-size: 0.92rem; margin-bottom: 0.6rem; }
+    .meta { font-size: 0.82rem; color: var(--muted); display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: var(--bg);
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+    }
+
+    /* Detail */
+    .back { color: var(--muted); text-decoration: none; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 0.3rem; margin-bottom: 1.5rem; }
+    .back:hover { color: var(--primary); }
+    .detail-hero {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 2rem;
+    }
+    .detail-hero h1 { font-size: 1.75rem; margin-bottom: 1rem; }
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      padding: 1rem 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin: 1rem 0;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .detail-meta strong { color: var(--text); display: block; font-size: 0.95rem; }
+    .detail-body { line-height: 1.7; color: #4a4035; }
+
+    .comments-block {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 1.75rem;
+      box-shadow: var(--shadow);
+    }
+    .comments-block h2 { font-size: 1.15rem; margin-bottom: 1.25rem; }
+    .comment-form textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      font: inherit;
+      resize: vertical;
+      min-height: 90px;
+      margin-bottom: 0.75rem;
+      background: var(--bg);
+    }
+    .comment {
+      background: var(--bg);
+      border-radius: 14px;
+      padding: 1rem 1.15rem;
+      margin-bottom: 0.75rem;
+    }
+    .comment-author { font-weight: 600; font-size: 0.92rem; margin-bottom: 0.3rem; }
+    .comment-text { font-size: 0.92rem; color: #4a4035; }
+    .comment-date { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
+
+    /* Prioritize */
+    .prioritize-intro {
+      background: var(--accent-light);
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.92rem;
+      color: #8b4a38;
+    }
+    .sortable-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .sortable-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      box-shadow: var(--shadow);
+      cursor: grab;
+    }
+    .drag-handle { color: var(--muted); font-size: 1.2rem; }
+    .sortable-item .pos {
+      width: 28px;
+      height: 28px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .sortable-item strong { font-size: 0.95rem; }
+
+    @media (max-width: 640px) {
+      .hero::after { display: none; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .actions { width: 100%; }
+      .actions .btn { flex: 1; justify-content: center; }
+      .proposal-card { grid-template-columns: 1fr; }
+      .rank-badge { width: 40px; height: 40px; font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mockup-bar">
+    <span>Propuesta A — Comunidad cálida</span>
+    <a href="index.html">← Volver al índice</a>
+  </div>
+
+  <div class="screen-tabs">
+    <button class="active" data-screen="home">Inicio</button>
+    <button data-screen="detail">Detalle</button>
+    <button data-screen="prioritize">Priorizar</button>
+  </div>
+
+  <!-- INICIO -->
+  <div id="home" class="screen active">
+    <header class="header">
+      <a href="#" class="logo">
+        <span class="logo-icon">🌿</span>
+        Priora
+      </a>
+      <nav>
+        <div class="user-chip">
+          <span class="avatar">JM</span>
+          <span>Juan Vecino</span>
+        </div>
+        <a href="#">Perfil</a>
+        <a href="#">Salir</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <section class="hero">
+        <h1>Propuestas del barrio</h1>
+        <p>Participá en las decisiones de tu comunidad. Priorizá, comentá y construí el barrio que querés.</p>
+      </section>
+
+      <div class="toolbar">
+        <div class="filters">
+          <button class="active">Activas</button>
+          <button>Rechazadas</button>
+        </div>
+        <div class="actions">
+          <a href="#" class="btn btn-secondary">↕ Priorizar</a>
+          <a href="#" class="btn btn-primary">+ Nueva propuesta</a>
+        </div>
+      </div>
+
+      <div class="proposal-list">
+        <article class="proposal-card">
+          <div class="rank-badge gold">#1</div>
+          <div>
+            <div class="card-top">
+              <h2><a href="#">Plaza renovada en el parque central</a></h2>
+              <span class="badge badge-activa">Activa</span>
+            </div>
+            <p class="excerpt">Propuesta para renovar la plaza del parque central con nuevo mobiliario urbano, iluminación LED y áreas verdes. Incluye bancos accesibles…</p>
+            <div class="meta">
+              <span>Por María Proponente</span>
+              <span class="score-pill">★ 42 puntos</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="proposal-card">
+          <div class="rank-badge">#2</div>
+          <div>
+            <div class="card-top">
+              <h2><a href="#">Contenedores de reciclaje</a></h2>
+              <span class="badge badge-activa">Activa</span>
+            </div>
+            <p class="excerpt">Instalación de contenedores de reciclaje separado en cada cuadra del barrio para mejorar la gestión de residuos.</p>
+            <div class="meta">
+              <span>Por Sofía Navarro</span>
+              <span class="score-pill">★ 38 puntos</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="proposal-card">
+          <div class="rank-badge">#3</div>
+          <div>
+            <div class="card-top">
+              <h2><a href="#">Ciclovía en Av. del Barrio</a></h2>
+              <span class="badge badge-analisis">En análisis</span>
+            </div>
+            <p class="excerpt">Construcción de una ciclovía segregada en Av. del Barrio para mejorar la movilidad segura de ciclistas y peatones.</p>
+            <div class="meta">
+              <span>Por María Proponente</span>
+              <span class="score-pill">★ 35 puntos</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="proposal-card">
+          <div class="rank-badge">#4</div>
+          <div>
+            <div class="card-top">
+              <h2><a href="#">Huerta urbana en la plaza lateral</a></h2>
+              <span class="badge badge-activa">Activa</span>
+            </div>
+            <p class="excerpt">Crear una huerta comunitaria con talleres mensuales de jardinería urbana y compostaje.</p>
+            <div class="meta">
+              <span>Por María Proponente</span>
+              <span class="score-pill">★ 28 puntos</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <!-- DETALLE -->
+  <div id="detail" class="screen">
+    <header class="header">
+      <a href="#" class="logo">
+        <span class="logo-icon">🌿</span>
+        Priora
+      </a>
+      <nav>
+        <div class="user-chip">
+          <span class="avatar">JM</span>
+          <span>Juan Vecino</span>
+        </div>
+        <a href="#">Perfil</a>
+        <a href="#">Salir</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <a href="#" class="back">← Volver al listado</a>
+
+      <article class="detail-hero">
+        <span class="badge badge-activa">Activa</span>
+        <h1>Plaza renovada en el parque central</h1>
+        <div class="detail-meta">
+          <div><strong>María Proponente</strong> Autora</div>
+          <div><strong>#1</strong> Ranking</div>
+          <div><strong>42</strong> Puntos</div>
+          <div><strong>Administrador</strong> Responsable</div>
+        </div>
+        <div class="detail-body">
+          Propuesta para renovar la plaza del parque central con nuevo mobiliario urbano, iluminación LED y áreas verdes. Incluye bancos accesibles y juegos infantiles.
+          <br><br>
+          El proyecto contempla tres fases: iluminación, mobiliario y áreas verdes. Se estima una duración de 6 meses con participación vecinal en el diseño de los espacios.
+        </div>
+      </article>
+
+      <section class="comments-block">
+        <h2>Comentarios del barrio</h2>
+        <div class="comment-form">
+          <textarea placeholder="Compartí tu opinión sobre esta propuesta…"></textarea>
+          <button class="btn btn-primary">Publicar comentario</button>
+        </div>
+        <div class="comment">
+          <div class="comment-author">Carlos Méndez</div>
+          <div class="comment-text">Me encanta esta idea. El parque necesita una renovación urgente.</div>
+          <div class="comment-date">3 jul 2026, 14:22</div>
+        </div>
+        <div class="comment">
+          <div class="comment-author">Ana Ríos</div>
+          <div class="comment-text">¿Se contempla accesibilidad para sillas de ruedas en los juegos infantiles?</div>
+          <div class="comment-date">2 jul 2026, 09:15</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- PRIORIZAR -->
+  <div id="prioritize" class="screen">
+    <header class="header">
+      <a href="#" class="logo">
+        <span class="logo-icon">🌿</span>
+        Priora
+      </a>
+      <nav>
+        <div class="user-chip">
+          <span class="avatar">JM</span>
+          <span>Juan Vecino</span>
+        </div>
+        <a href="#">Perfil</a>
+        <a href="#">Salir</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <a href="#" class="back">← Volver</a>
+      <h1 style="font-size:1.75rem;margin-bottom:0.5rem;">Priorizar propuestas</h1>
+      <p style="color:var(--muted);margin-bottom:1.5rem;">Arrastrá las propuestas de mayor a menor importancia para vos.</p>
+
+      <div class="prioritize-intro">
+        💡 Tu orden personal influye en el ranking global del barrio. Podés cambiarlo cuando quieras.
+      </div>
+
+      <div class="sortable-list">
+        <div class="sortable-item">
+          <span class="drag-handle">☰</span>
+          <span class="pos">1</span>
+          <strong>Plaza renovada en el parque central</strong>
+          <span class="badge badge-activa">Activa</span>
+        </div>
+        <div class="sortable-item">
+          <span class="drag-handle">☰</span>
+          <span class="pos">2</span>
+          <strong>Contenedores de reciclaje</strong>
+          <span class="badge badge-activa">Activa</span>
+        </div>
+        <div class="sortable-item">
+          <span class="drag-handle">☰</span>
+          <span class="pos">3</span>
+          <strong>Ciclovía en Av. del Barrio</strong>
+          <span class="badge badge-analisis">En análisis</span>
+        </div>
+        <div class="sortable-item">
+          <span class="drag-handle">☰</span>
+          <span class="pos">4</span>
+          <strong>Huerta urbana en la plaza lateral</strong>
+          <span class="badge badge-activa">Activa</span>
+        </div>
+        <div class="sortable-item">
+          <span class="drag-handle">☰</span>
+          <span class="pos">5</span>
+          <strong>Pintura de murales comunitarios</strong>
+          <span class="badge badge-activa">Activa</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary">Guardar priorización</button>
+    </main>
+  </div>
+
+  <script>
+    document.querySelectorAll('.screen-tabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.screen-tabs button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.screen).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

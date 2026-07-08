@@ -1,0 +1,11 @@
+target/
+priora.db
+priora.db-*
+uploads/
+.env
+.env.*
+!.env.example
+!.env.production.example
+.git
+.gitignore
+*.md

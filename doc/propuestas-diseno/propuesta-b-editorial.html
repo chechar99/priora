@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Priora — Propuesta B: Editorial moderno</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --text: #111111;
+      --muted: #666666;
+      --accent: #c0392b;
+      --accent-soft: #fdf2f1;
+      --border: #e0e0e0;
+      --serif: 'Fraunces', Georgia, serif;
+      --sans: 'Source Sans 3', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .mockup-bar {
+      background: var(--text);
+      color: #fafafa;
+      padding: 0.6rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-family: var(--sans);
+    }
+    .mockup-bar a { color: #aaa; text-decoration: none; }
+    .mockup-bar a:hover { color: white; }
+
+    .screen-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--text);
+      background: var(--surface);
+      overflow-x: auto;
+    }
+    .screen-tabs button {
+      border: none;
+      background: none;
+      padding: 0.85rem 1.5rem;
+      font: inherit;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      white-space: nowrap;
+    }
+    .screen-tabs button.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .header {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 1.5rem 2rem;
+    }
+    .header-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .logo {
+      font-family: var(--serif);
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .logo span { color: var(--accent); }
+    .header nav {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.88rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .header nav a { color: var(--muted); text-decoration: none; }
+    .header nav a:hover { color: var(--text); }
+
+    .main { max-width: 960px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+
+    .masthead {
+      border-bottom: 3px double var(--text);
+      padding-bottom: 2rem;
+      margin-bottom: 2.5rem;
+    }
+    .masthead-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .masthead h1 {
+      font-family: var(--serif);
+      font-size: 2.75rem;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.75rem;
+    }
+    .masthead p { color: var(--muted); font-size: 1.05rem; max-width: 520px; }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .filters { display: flex; gap: 0; }
+    .filters button {
+      padding: 0.4rem 1rem;
+      border: none;
+      background: none;
+      font: inherit;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .filters button.active {
+      color: var(--text);
+      text-decoration: underline;
+      text-underline-offset: 4px;
+      text-decoration-color: var(--accent);
+      text-decoration-thickness: 2px;
+    }
+    .filters button + button { border-left: 1px solid var(--border); }
+    .actions { display: flex; gap: 0.75rem; }
+    .btn {
+      display: inline-block;
+      padding: 0.55rem 1.25rem;
+      font: inherit;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--text); color: white; }
+    .btn-primary:hover { background: #333; }
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--text);
+    }
+
+    .proposal-list { display: flex; flex-direction: column; }
+    .proposal-card {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 1.5rem;
+      padding: 1.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .proposal-card:first-child { border-top: 1px solid var(--border); }
+    .rank {
+      font-family: var(--serif);
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--accent);
+      letter-spacing: -0.04em;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .card-top h2 {
+      font-family: var(--serif);
+      font-size: 1.45rem;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+    .card-top h2 a { color: inherit; text-decoration: none; }
+    .card-top h2 a:hover { color: var(--accent); }
+    .badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.2rem 0;
+      border-bottom: 2px solid;
+      white-space: nowrap;
+    }
+    .badge-activa { color: var(--text); border-color: var(--text); }
+    .badge-analisis { color: var(--accent); border-color: var(--accent); }
+    .excerpt {
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.6;
+      margin-bottom: 0.75rem;
+      max-width: 600px;
+    }
+    .meta {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .meta strong { color: var(--text); }
+
+    /* Detail */
+    .back {
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-block;
+      margin-bottom: 2rem;
+    }
+    .back:hover { color: var(--accent); }
+
+    .detail-header { margin-bottom: 2rem; }
+    .detail-header .badge { margin-bottom: 1rem; display: inline-block; }
+    .detail-header h1 {
+      font-family: var(--serif);
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.5rem;
+    }
+    .detail-byline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      padding: 1.25rem 0;
+      border-top: 1px solid var(--text);
+      border-bottom: 1px solid var(--text);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+    .detail-byline span strong { color: var(--text); display: block; font-size: 1rem; margin-top: 0.15rem; }
+
+    .detail-body {
+      columns: 1;
+      font-size: 1.05rem;
+      line-height: 1.75;
+      margin: 2rem 0 3rem;
+      max-width: 680px;
+    }
+    @media (min-width: 700px) {
+      .detail-body { columns: 2; column-gap: 2.5rem; }
+    }
+
+    .comments-section h2 {
+      font-family: var(--serif);
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      padding-top: 1rem;
+      border-top: 3px double var(--text);
+    }
+    .comment-form textarea {
+      width: 100%;
+      border: none;
+      border-bottom: 2px solid var(--text);
+      padding: 0.75rem 0;
+      font: inherit;
+      font-size: 1rem;
+      resize: none;
+      min-height: 60px;
+      margin-bottom: 1rem;
+      background: transparent;
+    }
+    .comment-form textarea:focus { outline: none; border-color: var(--accent); }
+    .comment {
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .comment-author {
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.35rem;
+    }
+    .comment-text { font-size: 0.98rem; line-height: 1.6; }
+    .comment-date {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Prioritize */
+    .prioritize-header h1 {
+      font-family: var(--serif);
+      font-size: 2.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .prioritize-header p { color: var(--muted); margin-bottom: 2rem; }
+    .sortable-list { margin-bottom: 2rem; }
+    .sortable-item {
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      gap: 1.25rem;
+      align-items: center;
+      padding: 1.1rem 0;
+      border-bottom: 1px solid var(--border);
+      cursor: grab;
+    }
+    .sortable-item:first-child { border-top: 1px solid var(--border); }
+    .sortable-item .pos {
+      font-family: var(--serif);
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .sortable-item strong {
+      font-family: var(--serif);
+      font-size: 1.1rem;
+    }
+    .drag-handle { display: none; }
+
+    @media (max-width: 640px) {
+      .masthead h1 { font-size: 2rem; }
+      .proposal-card { grid-template-columns: 50px 1fr; gap: 1rem; }
+      .rank { font-size: 2rem; }
+      .detail-header h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mockup-bar">
+    <span>Propuesta B — Editorial moderno</span>
+    <a href="index.html">← Volver al índice</a>
+  </div>
+
+  <div class="screen-tabs">
+    <button class="active" data-screen="home">Inicio</button>
+    <button data-screen="detail">Detalle</button>
+    <button data-screen="prioritize">Priorizar</button>
+  </div>
+
+  <!-- INICIO -->
+  <div id="home" class="screen active">
+    <header class="header">
+      <div class="header-inner">
+        <a href="#" class="logo">Prior<span>a</span></a>
+        <nav>
+          <a href="#">Juan Vecino</a>
+          <a href="#">Perfil</a>
+          <a href="#">Salir</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main">
+      <header class="masthead">
+        <div class="masthead-label">Participación ciudadana</div>
+        <h1>Propuestas del barrio</h1>
+        <p>Ordenadas por la priorización colectiva de la comunidad. Leé, debatí y decidí qué importa.</p>
+      </header>
+
+      <div class="toolbar">
+        <div class="filters">
+          <button class="active">Activas</button>
+          <button>Rechazadas</button>
+        </div>
+        <div class="actions">
+          <a href="#" class="btn btn-outline">Priorizar</a>
+          <a href="#" class="btn btn-primary">Nueva propuesta</a>
+        </div>
+      </div>
+
+      <div class="proposal-list">
+        <article class="proposal-card">
+          <div class="rank">01</div>
+          <div>
+            <div class="card-top">
+              <h2><a href="#">Plaza renovada en el parque central</a></h2>
+              <span class="badge badge-activa">Activa</span>
+            </div>
+            <p class="excerpt">Propuesta para renovar la plaza del parque central con nuevo mobiliario urbano, iluminación LED y áreas verdes. Incluye bancos accesibles y juegos infantiles.</p>
+            <div class="meta">Por <strong>María Proponente</strong> · 42 puntos</div>
+          </div>
+        </article>
+
+        <article class="proposal-card">
+          <div class="rank">02</div>
+          <div>
+            <div class="card-top">
+              <h2><a href="#">Contenedores de reciclaje</a></h2>
+              <span class="badge badge-activa">Activa</span>
+            </div>
+            <p class="excerpt">Instalación de contenedores de reciclaje separado en cada cuadra del barrio para mejorar la gestión de residuos.</p>
+            <div class="meta">Por <strong>Sofía Navarro</strong> · 38 puntos</div>
+          </div>
+        </article>
+
+        <article class="proposal-card">
+          <div class="rank">03</div>
+          <div>
+            <div class="card-top">
+              <h2><a href="#">Ciclovía en Av. del Barrio</a></h2>
+              <span class="badge badge-analisis">En análisis</span>
+            </div>
+            <p class="excerpt">Construcción de una ciclovía segregada en Av. del Barrio para mejorar la movilidad segura de ciclistas y peatones.</p>
+            <div class="meta">Por <strong>María Proponente</strong> · 35 puntos</div>
+          </div>
+        </article>
+
+        <article class="proposal-card">
+          <div class="rank">04</div>
+          <div>
+            <div class="card-top">
+              <h2><a href="#">Huerta urbana en la plaza lateral</a></h2>
+              <span class="badge badge-activa">Activa</span>
+            </div>
+            <p class="excerpt">Crear una huerta comunitaria con talleres mensuales de jardinería urbana y compostaje.</p>
+            <div class="meta">Por <strong>María Proponente</strong> · 28 puntos</div>
+          </div>
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <!-- DETALLE -->
+  <div id="detail" class="screen">
+    <header class="header">
+      <div class="header-inner">
+        <a href="#" class="logo">Prior<span>a</span></a>
+        <nav>
+          <a href="#">Juan Vecino</a>
+          <a href="#">Perfil</a>
+          <a href="#">Salir</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main">
+      <a href="#" class="back">← Volver</a>
+
+      <header class="detail-header">
+        <span class="badge badge-activa">Activa</span>
+        <h1>Plaza renovada en el parque central</h1>
+        <div class="detail-byline">
+          <span><strong>María Proponente</strong> Autora</span>
+          <span><strong>#1</strong> Ranking</span>
+          <span><strong>42</strong> Puntos</span>
+          <span><strong>Administrador</strong> Responsable</span>
+        </div>
+      </header>
+
+      <div class="detail-body">
+        <p>Propuesta para renovar la plaza del parque central con nuevo mobiliario urbano, iluminación LED y áreas verdes. Incluye bancos accesibles y juegos infantiles.</p>
+        <p>El proyecto contempla tres fases: iluminación, mobiliario y áreas verdes. Se estima una duración de 6 meses con participación vecinal en el diseño de los espacios.</p>
+      </div>
+
+      <section class="comments-section">
+        <h2>Debate</h2>
+        <div class="comment-form">
+          <textarea placeholder="Escribí tu comentario…"></textarea>
+          <button class="btn btn-primary">Publicar</button>
+        </div>
+        <article class="comment">
+          <div class="comment-author">Carlos Méndez</div>
+          <div class="comment-text">Me encanta esta idea. El parque necesita una renovación urgente.</div>
+          <div class="comment-date">3 jul 2026</div>
+        </article>
+        <article class="comment">
+          <div class="comment-author">Ana Ríos</div>
+          <div class="comment-text">¿Se contempla accesibilidad para sillas de ruedas en los juegos infantiles?</div>
+          <div class="comment-date">2 jul 2026</div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <!-- PRIORIZAR -->
+  <div id="prioritize" class="screen">
+    <header class="header">
+      <div class="header-inner">
+        <a href="#" class="logo">Prior<span>a</span></a>
+        <nav>
+          <a href="#">Juan Vecino</a>
+          <a href="#">Perfil</a>
+          <a href="#">Salir</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main">
+      <a href="#" class="back">← Volver</a>
+      <header class="prioritize-header">
+        <h1>Priorizar</h1>
+        <p>Ordená las propuestas de mayor a menor importancia. Tu voto define el ranking del barrio.</p>
+      </header>
+
+      <div class="sortable-list">
+        <div class="sortable-item">
+          <span class="pos">1</span>
+          <strong>Plaza renovada en el parque central</strong>
+          <span class="badge badge-activa">Activa</span>
+        </div>
+        <div class="sortable-item">
+          <span class="pos">2</span>
+          <strong>Contenedores de reciclaje</strong>
+          <span class="badge badge-activa">Activa</span>
+        </div>
+        <div class="sortable-item">
+          <span class="pos">3</span>
+          <strong>Ciclovía en Av. del Barrio</strong>
+          <span class="badge badge-analisis">En análisis</span>
+        </div>
+        <div class="sortable-item">
+          <span class="pos">4</span>
+          <strong>Huerta urbana en la plaza lateral</strong>
+          <span class="badge badge-activa">Activa</span>
+        </div>
+        <div class="sortable-item">
+          <span class="pos">5</span>
+          <strong>Pintura de murales comunitarios</strong>
+          <span class="badge badge-activa">Activa</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary">Guardar priorización</button>
+    </main>
+  </div>
+
+  <script>
+    document.querySelectorAll('.screen-tabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.screen-tabs button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.screen).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
