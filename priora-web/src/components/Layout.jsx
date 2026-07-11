@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import MembershipBanner from './MembershipBanner';
+import InviteBanner from './InviteBanner';
 import TutorialOverlay from './TutorialOverlay';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../context/NamespaceContext';
@@ -179,6 +180,7 @@ export default function Layout() {
           </div>
         </aside>
         <main className="content">
+          <InviteBanner />
           <MembershipBanner />
           <Outlet />
         </main>

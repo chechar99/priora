@@ -6,6 +6,46 @@ import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../context/NamespaceContext';
 
+const STATUS_LABELS = {
+  activa: 'Activa',
+  en_analisis: 'En análisis',
+  rechazada: 'Rechazada',
+};
+
+const STATUS_TRANSITIONS = {
+  activa: ['activa', 'en_analisis', 'rechazada'],
+  en_analisis: ['en_analisis', 'activa', 'rechazada'],
+  rechazada: ['rechazada', 'activa'],
+};
+
+function formatDate(value) {
+  return new Date(value).toLocaleString('es-AR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
+function timelineLabel(event) {
+  if (event.event_type === 'created') {
+    return 'Propuesta creada';
+  }
+  if (event.event_type === 'status_changed') {
+    const from = STATUS_LABELS[event.from_value] || event.from_value;
+    const to = STATUS_LABELS[event.to_value] || event.to_value;
+    return `Estado: ${from} → ${to}`;
+  }
+  if (event.event_type === 'tracker_changed') {
+    if (!event.to_user) {
+      return 'Responsable de seguimiento quitado';
+    }
+    if (!event.from_user) {
+      return `Responsable asignado: ${event.to_user.name}`;
+    }
+    return `Responsable: ${event.from_user.name} → ${event.to_user.name}`;
+  }
+  return event.event_type;
+}
+
 export default function ProposalDetail() {
   const { id } = useParams();
   const { slug, path } = useNamespace();
@@ -36,6 +76,14 @@ export default function ProposalDetail() {
     enabled: !!user,
   });
 
+  const isAdmin = user?.role === 'admin';
+
+  const { data: users = [] } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: () => api.users(),
+    enabled: isAdmin,
+  });
+
   const maxScore = useMemo(
     () => Math.max(...activeProposals.map((p) => p.score || 0), 1),
     [activeProposals],
@@ -52,12 +100,19 @@ export default function ProposalDetail() {
     },
   });
 
+  const invalidateProposal = () => {
+    queryClient.invalidateQueries({ queryKey: ['proposal', slug, id] });
+    queryClient.invalidateQueries({ queryKey: ['proposals', slug] });
+  };
+
   const statusMutation = useMutation({
     mutationFn: (status) => api.updateStatus(slug, id, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['proposal', slug, id] });
-      queryClient.invalidateQueries({ queryKey: ['proposals', slug] });
-    },
+    onSuccess: invalidateProposal,
+  });
+
+  const trackerMutation = useMutation({
+    mutationFn: (trackerId) => api.updateTracker(slug, id, trackerId),
+    onSuccess: invalidateProposal,
   });
 
   if (isLoading) return <p>Cargando…</p>;
@@ -68,10 +123,11 @@ export default function ProposalDetail() {
     user?.profile_complete &&
     proposal.status !== 'rechazada' &&
     membership?.can_comment;
-  const isAdmin = user?.role === 'admin';
   const commentCount = commentsPage?.total ?? commentsPage?.comments?.length ?? 0;
   const needsApproval =
     membership?.require_member_approval && user?.profile_complete && !membership?.can_comment;
+  const allowedStatuses = STATUS_TRANSITIONS[proposal.status] || [proposal.status];
+  const timeline = proposal.timeline || [];
 
   return (
     <div>
@@ -94,18 +150,48 @@ export default function ProposalDetail() {
             {isAdmin && (
               <div className="admin-panel">
                 <h3>Administración</h3>
-                <div className="admin-actions">
-                  {['activa', 'en_analisis', 'rechazada'].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      className={`btn btn-small btn-secondary ${proposal.status === s ? 'active' : ''}`}
-                      onClick={() => statusMutation.mutate(s)}
-                    >
-                      {s}
-                    </button>
-                  ))}
+                <div className="admin-field">
+                  <label>Estado</label>
+                  <div className="admin-actions">
+                    {allowedStatuses.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className={`btn btn-small btn-secondary ${proposal.status === s ? 'active' : ''}`}
+                        disabled={statusMutation.isPending || proposal.status === s}
+                        onClick={() => statusMutation.mutate(s)}
+                      >
+                        {STATUS_LABELS[s] || s}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <div className="admin-field">
+                  <label htmlFor="tracker-select">Responsable de seguimiento</label>
+                  <select
+                    id="tracker-select"
+                    className="tracker-select"
+                    value={proposal.tracker?.id || ''}
+                    disabled={trackerMutation.isPending}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      trackerMutation.mutate(value || null);
+                    }}
+                  >
+                    <option value="">Sin asignar</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                        {u.email ? ` (${u.email})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {(statusMutation.isError || trackerMutation.isError) && (
+                  <p className="error">
+                    {statusMutation.error?.message || trackerMutation.error?.message}
+                  </p>
+                )}
               </div>
             )}
           </article>
@@ -166,6 +252,62 @@ export default function ProposalDetail() {
         </div>
 
         <aside className="detail-sidebar">
+          <div className="panel tracking-panel">
+            <h3>Seguimiento</h3>
+            <div className="tracking-status">
+              <StatusBadge status={proposal.status} />
+              <p className="tracking-status-hint">
+                {proposal.status === 'activa' && 'Abierta a priorización y comentarios.'}
+                {proposal.status === 'en_analisis' && 'En evaluación por la administración.'}
+                {proposal.status === 'rechazada' && 'Descartada; visible solo con filtro.'}
+              </p>
+            </div>
+
+            <div className="tracker-card">
+              <span className="tracker-label">Responsable</span>
+              {proposal.tracker ? (
+                <div className="tracker-person">
+                  {proposal.tracker.picture_url ? (
+                    <img
+                      src={proposal.tracker.picture_url}
+                      alt=""
+                      className="tracker-avatar"
+                    />
+                  ) : (
+                    <span className="tracker-avatar tracker-avatar-fallback" aria-hidden="true">
+                      {proposal.tracker.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <strong>{proposal.tracker.name}</strong>
+                </div>
+              ) : (
+                <p className="tracker-empty">Todavía no hay responsable asignado.</p>
+              )}
+            </div>
+
+            <div className="timeline">
+              <h4>Historial</h4>
+              {timeline.length === 0 ? (
+                <p className="tracker-empty">Sin eventos aún.</p>
+              ) : (
+                <ol className="timeline-list">
+                  {[...timeline].reverse().map((event) => (
+                    <li key={event.id} className={`timeline-item timeline-${event.event_type}`}>
+                      <div className="timeline-dot" aria-hidden="true" />
+                      <div className="timeline-body">
+                        <div className="timeline-title">{timelineLabel(event)}</div>
+                        <div className="timeline-meta">
+                          <time dateTime={event.created_at}>{formatDate(event.created_at)}</time>
+                          {event.actor && <span> · {event.actor.name}</span>}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </div>
+
           <div className="panel">
             <h3>Información</h3>
             <div className="row">
@@ -178,6 +320,10 @@ export default function ProposalDetail() {
                 <strong>{proposal.category.name}</strong>
               </div>
             )}
+            <div className="row">
+              <span>Creada</span>
+              <strong>{formatDate(proposal.created_at)}</strong>
+            </div>
             {proposal.rank_position > 0 && (
               <div className="row">
                 <span>Ranking</span>
@@ -188,12 +334,6 @@ export default function ProposalDetail() {
               <div className="row">
                 <span>Puntos</span>
                 <strong>{proposal.score}</strong>
-              </div>
-            )}
-            {proposal.tracker && (
-              <div className="row">
-                <span>Responsable</span>
-                <strong>{proposal.tracker.name}</strong>
               </div>
             )}
           </div>

@@ -26,13 +26,15 @@ Solo usuarios con roles especiales (**Administrador** o **Proponente**) pueden c
 | Área | Alcance |
 |------|---------|
 | Autenticación | Google OAuth + registro de dirección obligatorio |
-| Propuestas | Listado, detalle, creación (roles restringidos), estados, categoría |
+| Propuestas | Listado, detalle, creación y edición (roles restringidos), estados, categoría, timeline |
+| Logos | Subida multipart (JPEG/PNG/WebP ≤ 2 MB) o URL; servidos desde `/uploads` |
 | Categorías | Catálogo fijo con 6 categorías por defecto; filtro en listado |
 | Priorización | Orden relativo de propuestas por usuario autenticado |
-| Comentarios | Foro por propuesta, últimos 10 visibles en detalle |
+| Comentarios | Foro por propuesta, últimos 10 visibles en detalle; borrado por autor o admin |
 | Filtros | Propuestas activas por defecto; opción de ver rechazadas |
 | Roles | Administrador, Proponente, Usuario regular, Admin de espacio (por namespace) |
 | Membresía | Aprobación opcional por espacio (`require_member_approval`) |
+| Invitaciones | Link `/for/{slug}?invite=…` para unir vecinos; canje → membresía `active` |
 
 ### 2.2 Fuera de alcance (fase posterior)
 
@@ -70,7 +72,7 @@ Usuario regular con permiso adicional para crear propuestas.
 |--------|-----------|
 | Todo lo de usuario regular | Sí |
 | Crear propuestas | Sí |
-| Editar propuestas propias (solo en estado *activa*) | Sí (prototipo: opcional, ver §5.4) |
+| Editar propuestas propias (solo en estado *activa*) | Sí (ver §5.4) |
 | Cambiar estado / asignar tracker | No |
 
 > Un **Administrador** puede promover a un usuario regular a **Proponente**.
@@ -88,6 +90,7 @@ Usuario con control total sobre el ciclo de vida de las propuestas y la comunida
 | Promover usuarios a Proponente / Admin | Sí |
 | Crear espacios y asignar admin de espacio | Sí |
 | Activar aprobación de miembros por espacio | Sí |
+| Compartir / regenerar link de invitación del espacio | Sí |
 
 ### 3.4 Admin de espacio (`space_admin`)
 
@@ -99,6 +102,7 @@ Rol **por espacio** (tabla `namespace_members`), no global.
 | Aprobar / rechazar solicitudes de membresía | Sí |
 | Deshabilitar / rehabilitar usuarios del espacio | Sí |
 | Activar/desactivar aprobación requerida del espacio | Sí |
+| Compartir / regenerar link de invitación del espacio | Sí |
 | Cambiar roles globales o crear espacios | No |
 
 ### 3.5 Aprobación de usuarios por espacio
@@ -107,20 +111,42 @@ Cada espacio tiene el flag `require_member_approval` (default **apagado**):
 
 - **Apagado:** cualquiera con perfil completo puede priorizar y comentar; el ranking cuenta para todos.
 - **Encendido:** el usuario ve un banner para solicitar autorización; puede priorizar pero **no cuenta** hasta `active`; **no puede comentar** hasta ser aprobado. Los admins ven la cola de pendientes en Configuración.
+- **Invitación válida** (§3.7): el canje deja la membresía en `active` de inmediato (salta la cola de aprobación).
 
 Estados de membresía: `pending` → `active` | `rejected` | `disabled`.
 
 ### 3.6 Matriz de permisos resumida
 
 ```
-                    Ver  Priorizar*  Comentar*  Crear  Editar  Estado  Tracker  Roles
-Usuario regular      ✓      ✓           ✓         ✗      ✗       ✗       ✗        ✗
-Proponente           ✓      ✓           ✓         ✓      propia  ✗       ✗        ✗
-Admin de espacio     ✓      ✓           ✓         ✓      propia  ✗       ✗      miembros
-Administrador        ✓      ✓           ✓         ✓      todas   ✓       ✓        ✓
+                    Ver  Priorizar*  Comentar*  Crear  Editar  Estado  Tracker  Roles  Invitar
+Usuario regular      ✓      ✓           ✓         ✗      ✗       ✗       ✗        ✗       ✗
+Proponente           ✓      ✓           ✓         ✓      propia  ✗       ✗        ✗       ✗
+Admin de espacio     ✓      ✓           ✓         ✓      propia  ✗       ✗      miembros   ✓
+Administrador        ✓      ✓           ✓         ✓      todas   ✓       ✓        ✓       ✓
 ```
 
-\*Con `require_member_approval`, priorizar/comentar con efecto requieren membresía `active`.
+\*Con `require_member_approval`, priorizar/comentar con efecto requieren membresía `active` (salvo canje de invitación).
+
+### 3.7 Invitaciones al barrio
+
+Crecimiento social: un admin comparte un link; el vecino entra sin depender de SEO.
+
+| Aspecto | Detalle |
+|---------|---------|
+| Formato | `/for/{slug}?invite={invite_code}` |
+| Quién genera | Admin de plataforma o `space_admin` (Configuración → Espacio) |
+| Secreto | `namespaces.invite_code` **no** se expone en `GET /namespaces/{slug}` |
+| Canje | Tras login + perfil completo → `POST /{ns}/membership/accept-invite` |
+| Efecto | Membresía `active` (rol `regular`); si ya era `pending`/`rejected`, pasa a `active` |
+| Regenerar | Invalida el link anterior (`POST /{ns}/invite`) |
+| Usuario deshabilitado | No puede canjear; debe rehabilitarlo un admin |
+
+**Flujo UI:**
+
+1. Admin copia texto listo para compartir (incluye URL).
+2. El invitado abre el link → banner “Te invitaron a {espacio}”.
+3. Si no hay sesión → CTA de login; el código se guarda en `sessionStorage`.
+4. Con perfil completo → canje automático y confirmación.
 
 ---
 
@@ -280,16 +306,19 @@ Los usuarios regulares y proponentes **no** pueden cambiar el estado.
 
 ### 5.4 Creación y edición
 
-**Crear propuesta** (Proponente / Administrador):
+**Crear propuesta** (Proponente / Administrador / admin de espacio con permiso de creación):
 
 1. Formulario: título, descripción, categoría (obligatoria), logo opcional (subida de imagen o URL).
 2. Estado inicial: siempre `activa`.
 3. Tras guardar, redirección al detalle de la propuesta creada.
+4. Ruta UI: `/for/{ns}/propuestas/nueva`.
 
-**Editar propuesta** (prototipo — recomendado):
+**Editar propuesta:**
 
 - El **autor** puede editar título, descripción, categoría y logo mientras el estado sea `activa`.
-- Un **Administrador** puede editar cualquier propuesta en cualquier estado.
+- Un **Administrador** de plataforma puede editar cualquier propuesta en cualquier estado.
+- Ruta UI: `/for/{ns}/propuestas/{id}/editar` (botón **Editar** en el detalle).
+- Enviar `logo_url: ""` en el PATCH limpia el logo.
 - Cambios de estado no borran comentarios ni priorizaciones.
 
 ### 5.5 Tracker (responsable de seguimiento)
@@ -303,8 +332,10 @@ Los usuarios regulares y proponentes **no** pueden cambiar el estado.
 
 - Formatos aceptados: JPEG, PNG, WebP.
 - Tamaño máximo: 2 MB.
-- Almacenamiento: servicio de objetos o directorio estático servido por el backend (definir en implementación).
-- Si no hay logo, se muestra un placeholder con iniciales del título.
+- **Subida:** `POST /api/uploads/logo` (multipart, campo `file`) → `{ "url": "/uploads/{uuid}.ext" }`.
+- **Almacenamiento:** directorio `uploads/` del API, servido en estático en `/uploads/…`.
+- Alternativa: pegar una URL externa en el formulario (se guarda en `logo_url`).
+- En detalle se muestra la imagen si hay `logo_url`; si no, no se fuerza placeholder en listado (opcional en UI).
 
 ### 5.7 Categorías
 
@@ -415,17 +446,17 @@ Cada propuesta tiene un **hilo de comentarios** de estilo foro: comentarios plan
 
 ### 7.4 Moderación (prototipo mínimo)
 
-- El autor del comentario puede **editar** su comentario dentro de los primeros 15 minutos.
-- El **Administrador** puede **eliminar** cualquier comentario.
-- No hay sistema de reportes en el prototipo.
+- El **autor** o un **Administrador** de plataforma pueden **eliminar** un comentario (confirmación en UI).
+- Edición de comentario propio (ventana 15 min) y sistema de reportes: **fuera del prototipo actual**.
 
 ### 7.5 Visualización
 
 Cada comentario muestra:
 
-- Avatar y nombre del autor (desde Google).
-- Fecha relativa ("hace 2 horas") y absoluta en tooltip.
+- Nombre del autor (desde Google); avatar si está disponible.
+- Fecha de publicación.
 - Contenido con saltos de línea preservados; sin HTML arbitrario (sanitización).
+- Acción **Borrar** si el usuario es autor o admin.
 
 ---
 
@@ -444,9 +475,10 @@ Cada comentario muestra:
        │                                        │
        ├──► [Priorizar — Reordenar]            │
        ├──► [Detalle propuesta]                 │
+       │         ├──► [Editar propuesta]        │
        │         └──► [Todos los comentarios]   │
        ├──► [Crear propuesta] (roles)          │
-       ├──► [Editar propuesta] (permisos)      │
+       ├──► [Configuración] (admins / invite)  │
        └──► [Perfil usuario] ──────────────────┘
 ```
 
@@ -478,11 +510,11 @@ Cada comentario muestra:
 
 **Secciones:**
 
-1. **Cabecera:** título, logo, badges de estado y categoría.
-2. **Metadatos:** autor, fecha creación, categoría, tracker (si asignado).
+1. **Cabecera:** título, logo (si hay), badges de estado y categoría; botón **Editar** si aplica (§5.4).
+2. **Metadatos / seguimiento:** autor, fecha, categoría, tracker, historial (`timeline` de `proposal_events`).
 3. **Descripción** completa.
-4. **Acciones admin:** cambiar estado, asignar tracker (solo Administrador).
-5. **Comentarios:** últimos 10 + formulario de nuevo comentario.
+4. **Acciones admin:** cambiar estado, asignar tracker (solo Administrador de plataforma).
+5. **Comentarios:** últimos 10 + formulario de nuevo comentario; borrado por autor/admin.
 6. **Navegación:** volver al listado.
 
 ### 8.4 Formulario crear / editar propuesta
@@ -490,7 +522,7 @@ Cada comentario muestra:
 - Título (input)
 - Categoría (select obligatorio, opciones del catálogo)
 - Descripción (textarea con contador de caracteres)
-- Logo (file input con preview)
+- Logo: file input con preview (subida multipart) **o** URL
 - Botones: Guardar / Cancelar
 
 ### 8.5 Perfil de usuario
@@ -499,6 +531,14 @@ Cada comentario muestra:
 - Formulario de dirección (editable)
 - Rol mostrado (solo lectura)
 - Historial de propuestas creadas (si Proponente/Admin) — opcional en prototipo
+
+### 8.6 Configuración del espacio (admins)
+
+Ruta: `/settings` (usa el último espacio visitado).
+
+- Toggle `require_member_approval`.
+- **Invitar vecinos:** mostrar URL de invitación, copiar texto para compartir, regenerar código.
+- Cola de autorizaciones pendientes y gestión de miembros (si aplica).
 
 ---
 
@@ -545,7 +585,7 @@ priora-api/
 ├── categories/    # Listado de categorías
 ├── rankings/      # Priorización usuario, agregación Borda
 ├── comments/      # CRUD comentarios
-└── uploads/       # Logos (opcional)
+└── uploads/       # Logos (POST /uploads/logo + ServeDir)
 ```
 
 ### 9.3 Frontend (React JS)
@@ -577,7 +617,9 @@ priora-web/
 │   └── utils/
 ```
 
-### 9.4 API REST — Endpoints (borrador)
+### 9.4 API REST — Endpoints
+
+Prefijo: `/api`. Las rutas de propuestas, comentarios, ranking y membresía van bajo `/{namespace}/…` (slug del espacio).
 
 #### Autenticación
 
@@ -596,6 +638,20 @@ priora-web/
 |--------|------|-------------|
 | PATCH | `/users/me` | Actualizar dirección |
 | GET | `/users/me` | Perfil completo |
+| GET | `/users` | Listado (admin) |
+| PATCH | `/users/:id/role` | Cambiar rol global (admin) |
+
+#### Namespaces e invitaciones
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/namespaces` | Listado de espacios |
+| POST | `/namespaces` | Crear espacio (admin) |
+| GET | `/namespaces/:slug` | Detalle (**sin** `invite_code`) |
+| PATCH | `/namespaces/:slug` | Actualizar (`require_member_approval`) |
+| GET | `/{ns}/invite` | Obtener código y path de invitación (managers) |
+| POST | `/{ns}/invite` | Regenerar código de invitación (managers) |
+| POST | `/{ns}/membership/accept-invite` | Canjear invitación → membresía `active` |
 
 #### Categorías
 
@@ -603,31 +659,37 @@ priora-web/
 |--------|------|-------------|
 | GET | `/categories` | Listado de categorías disponibles |
 
-#### Propuestas
+#### Uploads
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/uploads/logo` | Multipart `file` → `{ url: "/uploads/…" }` |
+| GET | `/uploads/:file` | Estático (fuera de `/api`, raíz del servidor) |
+
+#### Propuestas (`/{ns}/…`)
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | GET | `/proposals` | Listado con ranking y filtros (`?filter=active\|rejected&category=<id>`) |
-| GET | `/proposals/:id` | Detalle |
+| GET | `/proposals/:id` | Detalle (incluye `timeline`) |
 | POST | `/proposals` | Crear (Proponente/Admin) |
-| PATCH | `/proposals/:id` | Editar |
-| PATCH | `/proposals/:id/estado` | Cambiar estado (Admin) |
+| PATCH | `/proposals/:id` | Editar (autor en `activa` o admin); `logo_url: ""` limpia |
+| PATCH | `/proposals/:id/status` | Cambiar estado (Admin) |
 | PATCH | `/proposals/:id/tracker` | Asignar tracker (Admin) |
 
-#### Priorización
+#### Priorización (`/{ns}/…`)
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | GET | `/rankings/me` | Orden personal del usuario |
 | PUT | `/rankings/me` | Guardar orden personal (`{ proposal_ids: [uuid, ...] }`) |
 
-#### Comentarios
+#### Comentarios (`/{ns}/…`)
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | GET | `/proposals/:id/comments` | Listado paginado (`?limit=10&offset=0`) |
 | POST | `/proposals/:id/comments` | Crear comentario |
-| PATCH | `/comments/:id` | Editar propio (ventana 15 min) |
 | DELETE | `/comments/:id` | Eliminar (Admin o autor) |
 
 ### 9.5 Modelo de datos (PostgreSQL)
@@ -719,18 +781,20 @@ CREATE TABLE comments (
 1. Un usuario puede iniciar sesión con Google y completar su dirección.
 2. La home muestra propuestas activas y en análisis ordenadas por ranking global.
 3. Un usuario autenticado puede guardar su priorización personal y ver el listado actualizado.
-4. Un Proponente puede crear una propuesta con título, descripción, categoría y logo opcional.
-5. La página de detalle muestra todos los campos, categoría, tracker, estado y últimos 10 comentarios.
-6. Los usuarios pueden publicar comentarios en propuestas activas y en análisis.
-7. El filtro permite ver propuestas rechazadas y filtrar por categoría; por defecto se muestran activas sin filtro de categoría.
-8. Un Administrador puede cambiar el estado y asignar tracker.
-9. Usuarios sin rol especial no ven el botón de crear propuesta.
-10. El catálogo de categorías incluye las 6 categorías por defecto del seed.
-11. Por defecto un espacio **no** exige aprobación: cualquier usuario con perfil completo puede priorizar y comentar con efecto.
-12. Con `require_member_approval` activo, el usuario no autorizado puede guardar priorización pero **no cuenta** en el ranking y **no puede comentar**.
-13. El usuario puede solicitar autorización; queda en `pending` hasta que un admin (plataforma o de espacio) apruebe o rechace.
-14. Tras aprobación (`active`), priorización y comentarios tienen efecto; tras rechazo (`rejected`) siguen bloqueados.
-15. Un admin de espacio puede aprobar solicitudes y deshabilitar miembros regulares de su espacio.
+4. Un Proponente puede crear una propuesta con título, descripción, categoría y logo opcional (archivo o URL).
+5. El autor puede editar su propuesta en estado `activa`; un admin puede editar cualquiera.
+6. La página de detalle muestra campos, categoría, tracker, estado, timeline y últimos 10 comentarios.
+7. Los usuarios pueden publicar comentarios en propuestas activas y en análisis; autor o admin pueden borrarlos.
+8. El filtro permite ver propuestas rechazadas y filtrar por categoría; por defecto se muestran activas sin filtro de categoría.
+9. Un Administrador puede cambiar el estado y asignar tracker.
+10. Usuarios sin rol especial no ven el botón de crear propuesta.
+11. El catálogo de categorías incluye las 6 categorías por defecto del seed.
+12. Por defecto un espacio **no** exige aprobación: cualquier usuario con perfil completo puede priorizar y comentar con efecto.
+13. Con `require_member_approval` activo, el usuario no autorizado puede guardar priorización pero **no cuenta** en el ranking y **no puede comentar**.
+14. El usuario puede solicitar autorización; queda en `pending` hasta que un admin (plataforma o de espacio) apruebe o rechace.
+15. Tras aprobación (`active`), priorización y comentarios tienen efecto; tras rechazo (`rejected`) siguen bloqueados.
+16. Un admin de espacio puede aprobar solicitudes y deshabilitar miembros regulares de su espacio.
+17. Un admin puede compartir un link de invitación; al canjearlo el usuario queda `active` sin pasar por la cola.
 
 ### 11.1 Pruebas BDD (API)
 
@@ -758,6 +822,8 @@ cd priora-api && cargo test --test bdd
 | Usuarios anónimos | Solo lectura vs redirección a login | Solo lectura en listado/detalle |
 | Primer administrador | Seed en DB vs variable de entorno vs script | `scripts/set-role.sh` (ver `doc/despliegue.md` §8) |
 | Aprobación al activar el toggle | Resetear miembros existentes vs solo nuevos | Solo nuevos: quien ya está `active` sigue; quien no tiene membresía debe solicitar |
+| Almacenamiento de logos | Object storage vs directorio local | Directorio `uploads/` en el API (prototipo) |
+| Invitación vs aprobación | ¿El invite salta la cola? | Sí: canje → `active` de inmediato |
 
 ---
 
@@ -766,8 +832,10 @@ cd priora-api && cargo test --test bdd
 1. ~~Inicializar monorepo~~ `priora-api` + `priora-web`.
 2. ~~Autenticación, propuestas, ranking, comentarios, namespaces~~.
 3. ~~Membresía por espacio y aprobación opcional~~.
-4. Ampliar cobertura BDD a auth, propuestas y ranking.
-5. Pulido UI y despliegue continuo.
+4. ~~Edición de propuestas, borrado de comentarios, upload de logo~~.
+5. ~~Invitaciones al barrio (`?invite=`)~~.
+6. Ampliar cobertura BDD a auth, propuestas, ranking e invitaciones.
+7. Notificaciones, dashboard de admins y resto del backlog de potenciación.
 
 ---
 
@@ -785,11 +853,12 @@ Guía detallada: [`doc/despliegue.md`](despliegue.md).
 
 ---
 
-## 15. Modelo de datos — membresía (SQLite)
+## 15. Modelo de datos — membresía e invitaciones (SQLite)
 
 ```sql
 -- Flag por espacio (default 0 = aprobación automática / libre)
 -- namespaces.require_member_approval INTEGER NOT NULL DEFAULT 0
+-- namespaces.invite_code TEXT UNIQUE  -- no se serializa en GET público
 
 CREATE TABLE namespace_members (
     namespace_id TEXT NOT NULL REFERENCES namespaces(id),
@@ -808,12 +877,15 @@ API relevante (prefijo `/api`):
 | Método | Ruta | Quién |
 |--------|------|--------|
 | GET | `/{ns}/membership/me` | autenticado / anónimo |
-| POST | `/{ns}/membership/request` | usuario con perfil |
+| POST | `/{ns}/membership/request` | usuario con perfil (si hay aprobación) |
+| POST | `/{ns}/membership/accept-invite` | usuario con perfil + código válido |
 | GET | `/{ns}/members?status=` | admin plataforma o space_admin |
 | PATCH | `/{ns}/members/{user_id}` | admin plataforma o space_admin |
 | PATCH | `/namespaces/{slug}` | admin plataforma o space_admin (`require_member_approval`) |
+| GET | `/{ns}/invite` | admin plataforma o space_admin |
+| POST | `/{ns}/invite` | regenerar código (admin plataforma o space_admin) |
 
 ---
 
-*Versión del documento: 1.1 — Membresía por espacio*  
+*Versión del documento: 1.2 — Edición, logos, borrado de comentarios e invitaciones*  
 *Última actualización: julio 2026*

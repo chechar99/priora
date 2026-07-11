@@ -279,6 +279,54 @@ pub async fn seed_demo_data(pool: &SqlitePool) -> AppResult<()> {
         .bind(now)
         .execute(pool)
         .await?;
+
+        let existing_events: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM proposal_events WHERE proposal_id = ?",
+        )
+        .bind(p.id)
+        .fetch_one(pool)
+        .await?;
+
+        if existing_events == 0 {
+            sqlx::query(
+                "INSERT INTO proposal_events (id, proposal_id, event_type, actor_id, from_value, to_value, created_at)
+                 VALUES (?, ?, 'created', ?, NULL, 'activa', ?)",
+            )
+            .bind(format!("{}-created", p.id))
+            .bind(p.id)
+            .bind(&author_id)
+            .bind(now - Duration::days(7))
+            .execute(pool)
+            .await?;
+
+            if p.status != "activa" {
+                sqlx::query(
+                    "INSERT INTO proposal_events (id, proposal_id, event_type, actor_id, from_value, to_value, created_at)
+                     VALUES (?, ?, 'status_changed', ?, 'activa', ?, ?)",
+                )
+                .bind(format!("{}-status", p.id))
+                .bind(p.id)
+                .bind(user_id_by_email(pool, "admin@priora.local").await?)
+                .bind(p.status)
+                .bind(now - Duration::days(2))
+                .execute(pool)
+                .await?;
+            }
+
+            if let Some(tid) = &tracker_id {
+                sqlx::query(
+                    "INSERT INTO proposal_events (id, proposal_id, event_type, actor_id, from_value, to_value, created_at)
+                     VALUES (?, ?, 'tracker_changed', ?, NULL, ?, ?)",
+                )
+                .bind(format!("{}-tracker", p.id))
+                .bind(p.id)
+                .bind(user_id_by_email(pool, "admin@priora.local").await?)
+                .bind(tid)
+                .bind(now - Duration::days(3))
+                .execute(pool)
+                .await?;
+            }
+        }
     }
 
     let carlos_id = user_id_by_email(pool, "carlos.mendez@priora.local").await?;
@@ -347,8 +395,8 @@ pub async fn seed_demo_data(pool: &SqlitePool) -> AppResult<()> {
     }
 
     sqlx::query(
-        "INSERT INTO namespaces (id, slug, name, require_member_approval)
-         VALUES ('ns-barrio-test', 'barrio-test', 'Barrio Test', 0)
+        "INSERT INTO namespaces (id, slug, name, require_member_approval, invite_code)
+         VALUES ('ns-barrio-test', 'barrio-test', 'Barrio Test', 0, 'demoinvit01')
          ON CONFLICT(slug) DO UPDATE SET name = excluded.name",
     )
     .execute(pool)

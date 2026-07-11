@@ -5,10 +5,28 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.8", features = ["multipart"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", default-features = false, features = [
+    "fs",
+    "io-util",
+    "macros",
+    "net",
+    "rt-multi-thread",
+    "signal",
+    "sync",
+    "time",
+] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "fs", "trace"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono", "uuid"] }
+sqlx = { version = "0.8", default-features = false, features = [
+    "runtime-tokio",
+    "sqlite",
+    "macros",
+    "migrate",
+    "chrono",
+    "uuid",
+] }
+# Bundle SQLite so the runtime image needs no libsqlite3
+libsqlite3-sys = { version = "0.30", default-features = false, features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
@@ -18,7 +36,7 @@ dotenvy = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 oauth2 = "4"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 thiserror = "2"
 
 [dev-dependencies]
@@ -30,3 +48,10 @@ tower = { version = "0.5", features = ["util"] }
 [[test]]
 name = "bdd"
 harness = false
+
+# Smaller release binary → smaller images and faster pushes
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

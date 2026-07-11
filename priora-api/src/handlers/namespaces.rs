@@ -8,9 +8,15 @@ use uuid::Uuid;
 use crate::auth::is_admin;
 use crate::db::fetch_namespace_by_slug;
 use crate::error::{AppError, AppResult};
+use crate::handlers::proposals::NamespacePath;
 use crate::handlers::{AppState, AuthSession};
 use crate::membership::{can_manage_space, get_membership};
-use crate::models::{CreateNamespaceRequest, Namespace, UpdateNamespaceRequest};
+use crate::models::{CreateNamespaceRequest, Namespace, NamespaceInvite, UpdateNamespaceRequest};
+
+fn generate_invite_code() -> String {
+    let raw = Uuid::new_v4().simple().to_string();
+    raw[..12].to_string()
+}
 
 pub async fn list(State(state): State<Arc<AppState>>) -> AppResult<Json<Vec<Namespace>>> {
     let rows = sqlx::query_as::<_, Namespace>(
@@ -62,14 +68,16 @@ pub async fn create(
     }
 
     let id = Uuid::new_v4().to_string();
+    let invite_code = generate_invite_code();
     let now = Utc::now();
     sqlx::query(
-        "INSERT INTO namespaces (id, slug, name, require_member_approval, created_at)
-         VALUES (?, ?, ?, 0, ?)",
+        "INSERT INTO namespaces (id, slug, name, require_member_approval, invite_code, created_at)
+         VALUES (?, ?, ?, 0, ?, ?)",
     )
     .bind(&id)
     .bind(&slug)
     .bind(name)
+    .bind(&invite_code)
     .bind(now)
     .execute(&state.pool)
     .await?;
@@ -100,6 +108,47 @@ pub async fn update(
 
     let updated = fetch_namespace_by_slug(&state.pool, &slug).await?;
     Ok(Json(updated))
+}
+
+pub async fn get_invite(
+    State(state): State<Arc<AppState>>,
+    Path(ns_path): Path<NamespacePath>,
+    session: AuthSession,
+) -> AppResult<Json<NamespaceInvite>> {
+    let ns = fetch_namespace_by_slug(&state.pool, &ns_path.namespace).await?;
+    let my = get_membership(&state.pool, &ns.id, &session.user.id).await?;
+    if !can_manage_space(&session.user, my.as_ref()) {
+        return Err(AppError::Forbidden);
+    }
+
+    Ok(Json(NamespaceInvite {
+        invite_code: ns.invite_code.clone(),
+        invite_path: format!("/for/{}?invite={}", ns.slug, ns.invite_code),
+    }))
+}
+
+pub async fn regenerate_invite(
+    State(state): State<Arc<AppState>>,
+    Path(ns_path): Path<NamespacePath>,
+    session: AuthSession,
+) -> AppResult<Json<NamespaceInvite>> {
+    let ns = fetch_namespace_by_slug(&state.pool, &ns_path.namespace).await?;
+    let my = get_membership(&state.pool, &ns.id, &session.user.id).await?;
+    if !can_manage_space(&session.user, my.as_ref()) {
+        return Err(AppError::Forbidden);
+    }
+
+    let invite_code = generate_invite_code();
+    sqlx::query("UPDATE namespaces SET invite_code = ? WHERE id = ?")
+        .bind(&invite_code)
+        .bind(&ns.id)
+        .execute(&state.pool)
+        .await?;
+
+    Ok(Json(NamespaceInvite {
+        invite_code: invite_code.clone(),
+        invite_path: format!("/for/{}?invite={}", ns.slug, invite_code),
+    }))
 }
 
 fn is_valid_slug(slug: &str) -> bool {

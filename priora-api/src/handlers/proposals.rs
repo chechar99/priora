@@ -12,10 +12,99 @@ use crate::membership::{can_create_in_space, get_membership};
 use crate::error::{AppError, AppResult};
 use crate::handlers::{AppState, AuthSession};
 use crate::models::{
-    CreateProposalRequest, Namespace, Proposal, ProposalDetail, ProposalListItem,
-    UpdateProposalRequest, UpdateStatusRequest, UpdateTrackerRequest,
+    CreateProposalRequest, Namespace, Proposal, ProposalDetail, ProposalEvent, ProposalListItem,
+    TimelineEvent, UpdateProposalRequest, UpdateStatusRequest, UpdateTrackerRequest,
 };
 use crate::ranking::compute_borda_scores;
+
+async fn record_event(
+    pool: &sqlx::SqlitePool,
+    proposal_id: &str,
+    event_type: &str,
+    actor_id: Option<&str>,
+    from_value: Option<&str>,
+    to_value: Option<&str>,
+) -> AppResult<()> {
+    let id = Uuid::new_v4().to_string();
+    sqlx::query(
+        "INSERT INTO proposal_events (id, proposal_id, event_type, actor_id, from_value, to_value, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(proposal_id)
+    .bind(event_type)
+    .bind(actor_id)
+    .bind(from_value)
+    .bind(to_value)
+    .bind(Utc::now())
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn load_timeline(
+    pool: &sqlx::SqlitePool,
+    proposal_id: &str,
+) -> AppResult<Vec<TimelineEvent>> {
+    let rows = sqlx::query_as::<_, ProposalEvent>(
+        "SELECT * FROM proposal_events WHERE proposal_id = ? ORDER BY created_at ASC, id ASC",
+    )
+    .bind(proposal_id)
+    .fetch_all(pool)
+    .await?;
+
+    let mut timeline = Vec::with_capacity(rows.len());
+    for row in rows {
+        let actor = if let Some(actor_id) = &row.actor_id {
+            Some(fetch_user_public(pool, actor_id).await?)
+        } else {
+            None
+        };
+
+        let (from_user, to_user) = if row.event_type == "tracker_changed" {
+            let from_user = if let Some(id) = &row.from_value {
+                Some(fetch_user_public(pool, id).await?)
+            } else {
+                None
+            };
+            let to_user = if let Some(id) = &row.to_value {
+                Some(fetch_user_public(pool, id).await?)
+            } else {
+                None
+            };
+            (from_user, to_user)
+        } else {
+            (None, None)
+        };
+
+        timeline.push(TimelineEvent {
+            id: row.id,
+            event_type: row.event_type,
+            actor,
+            from_value: row.from_value,
+            to_value: row.to_value,
+            from_user,
+            to_user,
+            created_at: row.created_at,
+        });
+    }
+
+    Ok(timeline)
+}
+
+fn status_transition_allowed(from: &str, to: &str) -> bool {
+    if from == to {
+        return true;
+    }
+    matches!(
+        (from, to),
+        ("activa", "en_analisis")
+            | ("activa", "rechazada")
+            | ("en_analisis", "activa")
+            | ("en_analisis", "rechazada")
+            | ("rechazada", "activa")
+    )
+}
 
 #[derive(Deserialize)]
 pub struct NamespacePath {
@@ -176,6 +265,8 @@ pub async fn get_one(
         .position(|item| item.id == path.id)
         .map(|i| (i + 1) as i64);
 
+    let timeline = load_timeline(&state.pool, &path.id).await?;
+
     Ok(Json(ProposalDetail {
         id: p.id,
         title: p.title,
@@ -187,6 +278,7 @@ pub async fn get_one(
         category,
         score,
         rank_position,
+        timeline,
         created_at: p.created_at,
         updated_at: p.updated_at,
     }))
@@ -231,6 +323,16 @@ pub async fn create(
     .execute(&state.pool)
     .await?;
 
+    record_event(
+        &state.pool,
+        &id,
+        "created",
+        Some(&user.id),
+        None,
+        Some("activa"),
+    )
+    .await?;
+
     get_one(
         State(state),
         Path(ProposalPath {
@@ -258,7 +360,11 @@ pub async fn update(
 
     let title = body.title.unwrap_or(p.title);
     let description = body.description.unwrap_or(p.description);
-    let logo_url = body.logo_url.or(p.logo_url);
+    let logo_url = match body.logo_url {
+        Some(s) if s.trim().is_empty() => None,
+        Some(s) => Some(s),
+        None => p.logo_url,
+    };
     let category_id = match body.category_id {
         Some(category_id) => {
             fetch_category(&state.pool, category_id.trim()).await?;
@@ -296,19 +402,37 @@ pub async fn update_status(
     }
 
     let ns = resolve_namespace(&state.pool, &path.namespace).await?;
-    fetch_proposal_in_namespace(&state.pool, &ns.id, &path.id).await?;
+    let p = fetch_proposal_in_namespace(&state.pool, &ns.id, &path.id).await?;
 
     let valid = ["activa", "en_analisis", "rechazada"];
     if !valid.contains(&body.status.as_str()) {
         return Err(AppError::BadRequest("invalid status".into()));
     }
+    if !status_transition_allowed(&p.status, &body.status) {
+        return Err(AppError::BadRequest(format!(
+            "transition from {} to {} is not allowed",
+            p.status, body.status
+        )));
+    }
 
-    sqlx::query("UPDATE proposals SET status = ?, updated_at = ? WHERE id = ?")
-        .bind(&body.status)
-        .bind(Utc::now())
-        .bind(&path.id)
-        .execute(&state.pool)
+    if p.status != body.status {
+        sqlx::query("UPDATE proposals SET status = ?, updated_at = ? WHERE id = ?")
+            .bind(&body.status)
+            .bind(Utc::now())
+            .bind(&path.id)
+            .execute(&state.pool)
+            .await?;
+
+        record_event(
+            &state.pool,
+            &path.id,
+            "status_changed",
+            Some(&session.user.id),
+            Some(&p.status),
+            Some(&body.status),
+        )
         .await?;
+    }
 
     get_one(State(state), Path(path)).await
 }
@@ -324,18 +448,31 @@ pub async fn update_tracker(
     }
 
     let ns = resolve_namespace(&state.pool, &path.namespace).await?;
-    fetch_proposal_in_namespace(&state.pool, &ns.id, &path.id).await?;
+    let p = fetch_proposal_in_namespace(&state.pool, &ns.id, &path.id).await?;
 
     if let Some(tracker_id) = &body.tracker_id {
         get_user_by_id(&state.pool, tracker_id).await?;
     }
 
-    sqlx::query("UPDATE proposals SET tracker_id = ?, updated_at = ? WHERE id = ?")
-        .bind(&body.tracker_id)
-        .bind(Utc::now())
-        .bind(&path.id)
-        .execute(&state.pool)
+    let changed = p.tracker_id != body.tracker_id;
+    if changed {
+        sqlx::query("UPDATE proposals SET tracker_id = ?, updated_at = ? WHERE id = ?")
+            .bind(&body.tracker_id)
+            .bind(Utc::now())
+            .bind(&path.id)
+            .execute(&state.pool)
+            .await?;
+
+        record_event(
+            &state.pool,
+            &path.id,
+            "tracker_changed",
+            Some(&session.user.id),
+            p.tracker_id.as_deref(),
+            body.tracker_id.as_deref(),
+        )
         .await?;
+    }
 
     get_one(State(state), Path(path)).await
 }

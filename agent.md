@@ -128,8 +128,10 @@ Prefijo: `/api`. Health: `GET /api/health`.
 | Auth | `GET /auth/google`, `POST /auth/dev-login`, `GET /auth/impersonate?priora_as=`, `POST /auth/stop-impersonate`, `GET /auth/me` |
 | Usuarios | `GET/PATCH /users/me`, `GET /users` (admin), `PATCH /users/:id/role` (admin) |
 | Namespaces | `GET/POST /namespaces` (POST admin), `GET/PATCH /namespaces/:slug` |
+| Invitaciones | `GET/POST /{ns}/invite` (managers), `POST /{ns}/membership/accept-invite` |
 | Membresía | `GET /{ns}/membership/me`, `POST /{ns}/membership/request`, `GET /{ns}/members`, `PATCH /{ns}/members/:user_id` |
-| Propuestas | `GET/POST /proposals`, `GET/PATCH /proposals/:id`, `PATCH .../status`, `PATCH .../tracker` |
+| Propuestas | `GET/POST /proposals`, `GET/PATCH /proposals/:id`, `PATCH .../status`, `PATCH .../tracker` — detalle incluye `timeline` (`proposal_events`) |
+| Uploads | `POST /uploads/logo` (multipart) → `/uploads/…` (estático) |
 | Comentarios | `GET/POST /proposals/:id/comments`, `DELETE /comments/:id` |
 | Ranking | `GET/PUT /rankings/me` |
 
@@ -139,6 +141,7 @@ Prefijo: `/api`. Health: `GET /api/health`.
 - Si está activo: priorización se guarda pero **no cuenta** en Borda hasta `status=active`; comentar requiere membresía activa.
 - `space_admin`: permisos de proponente en el espacio + aprobar/rechazar/deshabilitar miembros.
 - Admin de plataforma siempre puede gestionar cualquier espacio.
+- Link de invitación `/for/{slug}?invite={code}`: el código no se expone en GET público; al canjearlo la membresía queda `active` (salta la cola).
 
 ### Autenticación
 
@@ -190,8 +193,11 @@ Prefijo de barrio: `/for/{namespace}` (ver `src/routes.js`).
 | Ruta | Pantalla |
 |------|----------|
 | `/for` | Selector de barrio |
-| `/for/:namespace` | Home |
-| `/settings` | Admin de plataforma o admin de espacio: toggle de aprobación, autorizaciones, miembros (usa el último espacio visitado) |
+| `/for/:namespace` | Home (`?invite=` canjea invitación) |
+| `/for/:namespace/propuestas/:id` | Detalle (editar / borrar comentarios) |
+| `/for/:namespace/propuestas/:id/editar` | Editar propuesta |
+| `/for/:namespace/propuestas/nueva` | Crear (logo upload o URL) |
+| `/settings` | Admin: aprobación, invitaciones, autorizaciones, miembros |
 | `/login`, `/auth/callback`, `/completar-perfil` | Auth (fuera de `/for`) |
 
 La API usa `/api` en el mismo dominio en producción (`VITE_API_URL` vacío).

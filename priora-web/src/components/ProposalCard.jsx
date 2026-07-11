@@ -33,6 +33,11 @@ export default function ProposalCard({ proposal, showRank = true, maxScore = 1 }
             <span className="badge badge-category">{proposal.category.name}</span>
           )}
           <StatusBadge status={proposal.status} />
+          {proposal.tracker && (
+            <span className="card-tracker" title={`Responsable: ${proposal.tracker.name}`}>
+              · {proposal.tracker.name}
+            </span>
+          )}
         </div>
       </div>
       {showRank && score > 0 && (

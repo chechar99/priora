@@ -12,6 +12,7 @@ import AdminSettings from './pages/AdminSettings';
 import AuthCallback from './pages/AuthCallback';
 import CompleteProfile from './pages/CompleteProfile';
 import CreateProposal from './pages/CreateProposal';
+import EditProposal from './pages/EditProposal';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import NamespacePicker from './pages/NamespacePicker';
@@ -82,6 +83,14 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route index element={<Home />} />
                 <Route path="propuestas/:id" element={<ProposalDetail />} />
+                <Route
+                  path="propuestas/:id/editar"
+                  element={
+                    <ProtectedRoute requireProfile>
+                      <EditProposal />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="propuestas/nueva"
                   element={

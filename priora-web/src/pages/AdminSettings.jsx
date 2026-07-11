@@ -56,10 +56,16 @@ function SpaceSettingsTab({ isGlobalAdmin }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const { data: namespace, isLoading } = useQuery({
     queryKey: ['namespace', slug],
     queryFn: () => api.namespace(slug),
+  });
+
+  const { data: invite, isLoading: loadingInvite } = useQuery({
+    queryKey: ['invite', slug],
+    queryFn: () => api.getInvite(slug),
   });
 
   const updateNs = useMutation({
@@ -81,6 +87,38 @@ function SpaceSettingsTab({ isGlobalAdmin }) {
       setError(e.message);
     },
   });
+
+  const regenerate = useMutation({
+    mutationFn: () => api.regenerateInvite(slug),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['invite', slug], data);
+      setCopied(false);
+      setSuccess('Se generó un nuevo link de invitación. El anterior ya no sirve.');
+      setError('');
+    },
+    onError: (e) => {
+      setSuccess('');
+      setError(e.message);
+    },
+  });
+
+  const inviteUrl = invite
+    ? `${window.location.origin}${invite.invite_path}`
+    : '';
+  const shareText = inviteUrl
+    ? `Te invito a Priora — propuestas de ${name}:\n${inviteUrl}`
+    : '';
+
+  async function copyInvite() {
+    if (!shareText) return;
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('No se pudo copiar al portapapeles');
+    }
+  }
 
   if (isLoading || !namespace) {
     return (
@@ -113,6 +151,48 @@ function SpaceSettingsTab({ isGlobalAdmin }) {
           </span>
         </span>
       </label>
+
+      <div className="invite-share">
+        <h3>Invitar vecinos</h3>
+        <p className="section-hint">
+          Compartí este link. Quien lo abra e inicie sesión entra al espacio como miembro
+          activo (sin pasar por la cola de aprobación).
+        </p>
+        {loadingInvite ? (
+          <p className="muted">Cargando link…</p>
+        ) : (
+          <>
+            <div className="invite-url-row">
+              <input
+                type="text"
+                readOnly
+                className="invite-url-input"
+                value={inviteUrl}
+                onFocus={(e) => e.target.select()}
+              />
+              <button type="button" className="btn btn-primary btn-small" onClick={copyInvite}>
+                {copied ? 'Copiado' : 'Copiar'}
+              </button>
+            </div>
+            <button
+              type="button"
+              className="btn-link"
+              disabled={regenerate.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    '¿Regenerar el link? El link actual dejará de funcionar.',
+                  )
+                ) {
+                  regenerate.mutate();
+                }
+              }}
+            >
+              Regenerar link
+            </button>
+          </>
+        )}
+      </div>
 
       {error && <p className="error">{error}</p>}
       {success && <p className="success">{success}</p>}

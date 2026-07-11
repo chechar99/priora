@@ -50,7 +50,16 @@ pub struct Namespace {
     pub slug: String,
     pub name: String,
     pub require_member_approval: bool,
+    /// Secret share token; omitted from public JSON (managers fetch via /invite).
+    #[serde(skip_serializing)]
+    pub invite_code: String,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct NamespaceInvite {
+    pub invite_code: String,
+    pub invite_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -94,6 +103,11 @@ pub struct UpdateNamespaceRequest {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct AcceptInviteRequest {
+    pub code: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct UpdateMemberRequest {
     pub status: Option<String>,
     pub role: Option<String>,
@@ -129,6 +143,29 @@ pub struct ProposalListItem {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ProposalEvent {
+    pub id: String,
+    pub proposal_id: String,
+    pub event_type: String,
+    pub actor_id: Option<String>,
+    pub from_value: Option<String>,
+    pub to_value: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TimelineEvent {
+    pub id: String,
+    pub event_type: String,
+    pub actor: Option<UserPublic>,
+    pub from_value: Option<String>,
+    pub to_value: Option<String>,
+    pub from_user: Option<UserPublic>,
+    pub to_user: Option<UserPublic>,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ProposalDetail {
     pub id: String,
@@ -141,6 +178,7 @@ pub struct ProposalDetail {
     pub category: Category,
     pub score: i64,
     pub rank_position: Option<i64>,
+    pub timeline: Vec<TimelineEvent>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

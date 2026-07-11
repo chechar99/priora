@@ -1,50 +1,71 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import LogoField from '../components/LogoField';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../context/NamespaceContext';
 
-export default function CreateProposal() {
+export default function EditProposal() {
+  const { id } = useParams();
   const { user } = useAuth();
   const { slug, path } = useNamespace();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ title: '', description: '', logo_url: '', category_id: '' });
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    logo_url: '',
+    category_id: '',
+  });
   const [error, setError] = useState('');
+  const [ready, setReady] = useState(false);
 
   const { data: categories = [], isLoading: loadingCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: () => api.categories(),
   });
 
-  const { data: membership, isLoading: loadingMembership } = useQuery({
-    queryKey: ['membership', slug],
-    queryFn: () => api.membershipMe(slug),
-    enabled: !!user,
+  const { data: proposal, isLoading, error: loadError } = useQuery({
+    queryKey: ['proposal', slug, id],
+    queryFn: () => api.proposal(slug, id),
   });
+
+  useEffect(() => {
+    if (!proposal || ready) return;
+    setForm({
+      title: proposal.title || '',
+      description: proposal.description || '',
+      logo_url: proposal.logo_url || '',
+      category_id: proposal.category?.id || '',
+    });
+    setReady(true);
+  }, [proposal, ready]);
 
   const mutation = useMutation({
     mutationFn: () =>
-      api.createProposal(slug, {
+      api.updateProposal(slug, id, {
         title: form.title,
         description: form.description,
-        logo_url: form.logo_url || null,
+        logo_url: form.logo_url || '',
         category_id: form.category_id,
       }),
     onSuccess: (data) => navigate(path(`propuestas/${data.id}`)),
     onError: (e) => setError(e.message),
   });
 
-  if (loadingMembership) {
-    return <p>Cargando…</p>;
-  }
+  if (isLoading || !ready) return <p>Cargando…</p>;
+  if (loadError) return <p className="error">{loadError.message}</p>;
+  if (!proposal) return null;
 
-  if (!user || !membership?.can_create_proposal) {
+  const isAuthor = user?.id === proposal.author?.id;
+  const canEdit =
+    user?.role === 'admin' || (isAuthor && proposal.status === 'activa');
+
+  if (!canEdit) {
     return (
       <div className="panel page-narrow">
-        <p>No tienes permiso para crear propuestas.</p>
-        <Link to={path()}>Volver</Link>
+        <p>No tenés permiso para editar esta propuesta.</p>
+        <Link to={path(`propuestas/${id}`)}>Volver</Link>
       </div>
     );
   }
@@ -53,8 +74,8 @@ export default function CreateProposal() {
     <div>
       <div className="content-header">
         <div>
-          <h1>Nueva propuesta</h1>
-          <p>Compartí una idea de mejora para el espacio</p>
+          <h1>Editar propuesta</h1>
+          <p>Actualizá el contenido de la propuesta</p>
         </div>
       </div>
 
@@ -107,9 +128,11 @@ export default function CreateProposal() {
           />
           {error && <p className="error">{error}</p>}
           <div className="actions">
-            <Link to={path()} className="btn btn-secondary">Cancelar</Link>
+            <Link to={path(`propuestas/${id}`)} className="btn btn-secondary">
+              Cancelar
+            </Link>
             <button type="submit" className="btn btn-primary" disabled={mutation.isPending}>
-              Crear propuesta
+              Guardar cambios
             </button>
           </div>
         </form>

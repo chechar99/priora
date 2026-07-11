@@ -5,6 +5,7 @@ mod membership;
 mod namespaces;
 mod proposals;
 mod rankings;
+mod uploads;
 mod users;
 
 use std::sync::Arc;
@@ -127,6 +128,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/rankings/me", get(rankings::get_my).put(rankings::save_my))
         .route("/membership/me", get(membership::me))
         .route("/membership/request", post(membership::request))
+        .route("/membership/accept-invite", post(membership::redeem_invite))
+        .route("/invite", get(namespaces::get_invite).post(namespaces::regenerate_invite))
         .route("/members", get(membership::list))
         .route("/members/{user_id}", patch(membership::update));
 
@@ -147,6 +150,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/namespaces/{slug}",
             get(namespaces::get_one).patch(namespaces::update),
         )
+        .route("/uploads/logo", post(uploads::upload_logo))
         .nest("/{namespace}", scoped)
         .with_state(state.clone());
 

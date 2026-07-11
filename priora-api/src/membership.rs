@@ -132,6 +132,61 @@ pub async fn request_membership(
         .ok_or_else(|| AppError::Internal("membership missing after request".into()))
 }
 
+/// Redeem a valid invite code: activates membership immediately (or creates it).
+pub async fn accept_invite(
+    pool: &SqlitePool,
+    namespace_id: &str,
+    user_id: &str,
+) -> AppResult<NamespaceMember> {
+    let existing = get_membership(pool, namespace_id, user_id).await?;
+    let now = Utc::now();
+
+    if let Some(m) = existing {
+        match m.status.as_str() {
+            MEMBER_STATUS_ACTIVE => return Ok(m),
+            MEMBER_STATUS_DISABLED => {
+                return Err(AppError::BadRequest(
+                    "your access to this space is disabled".into(),
+                ));
+            }
+            MEMBER_STATUS_PENDING | MEMBER_STATUS_REJECTED => {
+                sqlx::query(
+                    "UPDATE namespace_members
+                     SET status = ?, reviewed_at = ?, reviewed_by = NULL
+                     WHERE namespace_id = ? AND user_id = ?",
+                )
+                .bind(MEMBER_STATUS_ACTIVE)
+                .bind(now)
+                .bind(namespace_id)
+                .bind(user_id)
+                .execute(pool)
+                .await?;
+            }
+            _ => {
+                return Err(AppError::BadRequest("invalid membership status".into()));
+            }
+        }
+    } else {
+        sqlx::query(
+            "INSERT INTO namespace_members
+             (namespace_id, user_id, role, status, requested_at, reviewed_at)
+             VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(namespace_id)
+        .bind(user_id)
+        .bind(MEMBER_ROLE_REGULAR)
+        .bind(MEMBER_STATUS_ACTIVE)
+        .bind(now)
+        .bind(now)
+        .execute(pool)
+        .await?;
+    }
+
+    get_membership(pool, namespace_id, user_id)
+        .await?
+        .ok_or_else(|| AppError::Internal("membership missing after invite".into()))
+}
+
 pub fn validate_member_status(status: &str) -> AppResult<()> {
     match status {
         MEMBER_STATUS_PENDING

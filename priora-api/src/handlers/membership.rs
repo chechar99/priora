@@ -11,13 +11,14 @@ use crate::error::{AppError, AppResult};
 use crate::handlers::proposals::NamespacePath;
 use crate::handlers::{AppState, AuthSession, OptionalAuthSession};
 use crate::membership::{
-    can_comment, can_create_in_space, can_manage_space, get_membership, is_global_admin,
-    ranking_counts, request_membership, validate_member_role, validate_member_status,
-    MEMBER_ROLE_SPACE_ADMIN, MEMBER_STATUS_ACTIVE, MEMBER_STATUS_DISABLED, MEMBER_STATUS_PENDING,
-    MEMBER_STATUS_REJECTED,
+    accept_invite, can_comment, can_create_in_space, can_manage_space, get_membership,
+    is_global_admin, ranking_counts, request_membership, validate_member_role,
+    validate_member_status, MEMBER_ROLE_SPACE_ADMIN, MEMBER_STATUS_ACTIVE,
+    MEMBER_STATUS_DISABLED, MEMBER_STATUS_PENDING, MEMBER_STATUS_REJECTED,
 };
 use crate::models::{
-    MembershipMeResponse, NamespaceMember, NamespaceMemberPublic, UpdateMemberRequest, User,
+    AcceptInviteRequest, MembershipMeResponse, NamespaceMember, NamespaceMemberPublic,
+    UpdateMemberRequest, User,
 };
 
 #[derive(Deserialize)]
@@ -81,6 +82,32 @@ pub async fn request(
     }
 
     request_membership(&state.pool, &ns.id, &session.user.id).await?;
+
+    me(
+        State(state),
+        Path(ns_path),
+        OptionalAuthSession {
+            session: Some(session),
+        },
+    )
+    .await
+}
+
+pub async fn redeem_invite(
+    State(state): State<Arc<AppState>>,
+    Path(ns_path): Path<NamespacePath>,
+    session: AuthSession,
+    Json(body): Json<AcceptInviteRequest>,
+) -> AppResult<Json<MembershipMeResponse>> {
+    ensure_profile(&session.user)?;
+    let ns = fetch_namespace_by_slug(&state.pool, &ns_path.namespace).await?;
+
+    let code = body.code.trim();
+    if code.is_empty() || code != ns.invite_code {
+        return Err(AppError::BadRequest("invalid invite code".into()));
+    }
+
+    accept_invite(&state.pool, &ns.id, &session.user.id).await?;
 
     me(
         State(state),

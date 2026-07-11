@@ -96,6 +96,16 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+  updateTracker: (namespace, id, tracker_id) =>
+    request(`${nsPrefix(namespace)}/proposals/${id}/tracker`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tracker_id }),
+    }),
+  uploadLogo: (file) => {
+    const body = new FormData();
+    body.append('file', file);
+    return request('/api/uploads/logo', { method: 'POST', body });
+  },
   comments: (namespace, id, limit = 10, offset = 0) =>
     request(`${nsPrefix(namespace)}/proposals/${id}/comments?limit=${limit}&offset=${offset}`),
   addComment: (namespace, id, content) =>
@@ -103,14 +113,30 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ content }),
     }),
+  deleteComment: (namespace, id) =>
+    request(`${nsPrefix(namespace)}/comments/${id}`, { method: 'DELETE' }),
   myRanking: (namespace) => request(`${nsPrefix(namespace)}/rankings/me`),
   saveRanking: (namespace, proposal_ids) =>
     request(`${nsPrefix(namespace)}/rankings/me`, {
       method: 'PUT',
       body: JSON.stringify({ proposal_ids }),
     }),
+  getInvite: (namespace) => request(`${nsPrefix(namespace)}/invite`),
+  regenerateInvite: (namespace) =>
+    request(`${nsPrefix(namespace)}/invite`, { method: 'POST' }),
+  acceptInvite: (namespace, code) =>
+    request(`${nsPrefix(namespace)}/membership/accept-invite`, {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
   googleLoginUrl: () => `${API_BASE}/api/auth/google`,
 };
+
+export function assetUrl(path) {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE}${path}`;
+}
 
 export function saveLastNamespace(slug) {
   if (slug) localStorage.setItem(LAST_NAMESPACE_KEY, slug);
