@@ -121,6 +121,8 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ proposal_ids }),
     }),
+  spaceDashboard: (namespace) => request(`${nsPrefix(namespace)}/stats`),
+  myActivity: (namespace) => request(`${nsPrefix(namespace)}/activity/me`),
   getInvite: (namespace) => request(`${nsPrefix(namespace)}/invite`),
   regenerateInvite: (namespace) =>
     request(`${nsPrefix(namespace)}/invite`, { method: 'POST' }),

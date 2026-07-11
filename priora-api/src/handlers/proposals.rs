@@ -10,12 +10,12 @@ use crate::auth::{ensure_profile, get_user_by_id, is_admin};
 use crate::db::{fetch_category, fetch_namespace_by_slug, fetch_user_public, sort_proposals_by_score};
 use crate::membership::{can_create_in_space, get_membership};
 use crate::error::{AppError, AppResult};
-use crate::handlers::{AppState, AuthSession};
+use crate::handlers::{AppState, AuthSession, OptionalAuthSession};
 use crate::models::{
     CreateProposalRequest, Namespace, Proposal, ProposalDetail, ProposalEvent, ProposalListItem,
-    TimelineEvent, UpdateProposalRequest, UpdateStatusRequest, UpdateTrackerRequest,
+    RankingInsight, TimelineEvent, UpdateProposalRequest, UpdateStatusRequest, UpdateTrackerRequest,
 };
-use crate::ranking::compute_borda_scores;
+use crate::ranking::compute_ranking_stats;
 
 async fn record_event(
     pool: &sqlx::SqlitePool,
@@ -192,10 +192,10 @@ pub async fn list(
     }
     let proposals = q.fetch_all(&state.pool).await?;
 
-    let scores = if query.filter == "rejected" {
+    let stats_map = if query.filter == "rejected" {
         std::collections::HashMap::new()
     } else {
-        compute_borda_scores(&state.pool, &ns.id).await?
+        compute_ranking_stats(&state.pool, &ns.id).await?
     };
 
     let mut items = Vec::new();
@@ -207,7 +207,10 @@ pub async fn list(
             None
         };
         let category = load_proposal_category(&state.pool, p.category_id.as_deref()).await?;
-        let score = scores.get(&p.id).copied().unwrap_or(0);
+        let stats = stats_map.get(&p.id);
+        let score = stats.map(|s| s.score).unwrap_or(0);
+        let rankers_count = stats.map(|s| s.rankers_count).unwrap_or(0);
+        let agreement = stats.and_then(|s| s.agreement.map(str::to_string));
         items.push(ProposalListItem {
             id: p.id,
             title: p.title,
@@ -219,6 +222,8 @@ pub async fn list(
             category,
             rank_position: 0,
             score,
+            rankers_count,
+            agreement,
             created_at: p.created_at,
         });
     }
@@ -230,9 +235,83 @@ pub async fn list(
     Ok(Json(items))
 }
 
+fn build_ranking_insight(
+    stats: Option<&crate::ranking::ProposalRankingStats>,
+    rank_position: Option<i64>,
+    active_count: i64,
+    your_position: Option<i64>,
+    your_points: Option<i64>,
+) -> RankingInsight {
+    let rankers = stats.map(|s| s.rankers_count).unwrap_or(0);
+    let top3 = stats.map(|s| s.top3_count).unwrap_or(0);
+    let avg = stats.map(|s| s.avg_position).unwrap_or(0.0);
+    let agreement = stats.and_then(|s| s.agreement.map(str::to_string));
+    let points_for_first = active_count.max(1);
+
+    let summary = if rankers == 0 {
+        "Todavía nadie priorizó esta propuesta.".into()
+    } else {
+        let mut parts = Vec::new();
+        if let Some(pos) = rank_position {
+            parts.push(format!("Está #{pos} en el ranking global"));
+        }
+        parts.push(format!(
+            "{rankers} vecino{} la priorizaron",
+            if rankers == 1 { "" } else { "s" }
+        ));
+        if top3 > 0 {
+            parts.push(format!(
+                "{top3} la pusieron entre sus 3 primeras"
+            ));
+        }
+        if avg > 0.0 {
+            parts.push(format!(
+                "posición media {:.1}",
+                avg + 1.0
+            ));
+        }
+        match agreement.as_deref() {
+            Some("consensus") => parts.push("hay consenso claro".into()),
+            Some("polarized") => parts.push("divide opiniones".into()),
+            _ => {}
+        }
+        if let (Some(yp), Some(ypts)) = (your_position, your_points) {
+            parts.push(format!(
+                "tu #{} aporta {ypts} punto{}",
+                yp + 1,
+                if ypts == 1 { "" } else { "s" }
+            ));
+        }
+        let mut s = parts[0].clone();
+        for part in parts.iter().skip(1) {
+            s.push_str("; ");
+            s.push_str(part);
+        }
+        s.push('.');
+        // Capitalize first letter already handled
+        let mut chars = s.chars();
+        match chars.next() {
+            Some(c) => format!("{}{}", c.to_uppercase(), chars.as_str()),
+            None => s,
+        }
+    };
+
+    RankingInsight {
+        rankers_count: rankers,
+        top3_count: top3,
+        avg_position: avg,
+        agreement,
+        summary,
+        your_position,
+        your_points,
+        points_for_first,
+    }
+}
+
 pub async fn get_one(
     State(state): State<Arc<AppState>>,
     Path(path): Path<ProposalPath>,
+    auth: OptionalAuthSession,
 ) -> AppResult<Json<ProposalDetail>> {
     let ns = resolve_namespace(&state.pool, &path.namespace).await?;
     let p = fetch_proposal_in_namespace(&state.pool, &ns.id, &path.id).await?;
@@ -245,8 +324,11 @@ pub async fn get_one(
     };
     let category = load_proposal_category(&state.pool, p.category_id.as_deref()).await?;
 
-    let scores = compute_borda_scores(&state.pool, &ns.id).await?;
-    let score = scores.get(&p.id).copied().unwrap_or(0);
+    let stats_map = compute_ranking_stats(&state.pool, &ns.id).await?;
+    let stats = stats_map.get(&p.id);
+    let score = stats.map(|s| s.score).unwrap_or(0);
+    let rankers_count = stats.map(|s| s.rankers_count).unwrap_or(0);
+    let agreement = stats.and_then(|s| s.agreement.map(str::to_string));
 
     let ranked: Vec<ProposalListItem> = list(
         State(state.clone()),
@@ -264,6 +346,42 @@ pub async fn get_one(
         .iter()
         .position(|item| item.id == path.id)
         .map(|i| (i + 1) as i64);
+    let active_count = ranked.len() as i64;
+
+    let (your_position, your_points) = if let Some(session) = &auth.session {
+        let row: Option<(i64,)> = sqlx::query_as(
+            "SELECT position FROM user_rankings
+             WHERE user_id = ? AND namespace_id = ? AND proposal_id = ?",
+        )
+        .bind(&session.user.id)
+        .bind(&ns.id)
+        .bind(&path.id)
+        .fetch_optional(&state.pool)
+        .await?;
+
+        let list_len: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM user_rankings WHERE user_id = ? AND namespace_id = ?",
+        )
+        .bind(&session.user.id)
+        .bind(&ns.id)
+        .fetch_one(&state.pool)
+        .await?;
+
+        match row {
+            Some((pos,)) if list_len > 0 => (Some(pos), Some(list_len - pos)),
+            _ => (None, None),
+        }
+    } else {
+        (None, None)
+    };
+
+    let ranking_insight = build_ranking_insight(
+        stats,
+        rank_position,
+        active_count,
+        your_position,
+        your_points,
+    );
 
     let timeline = load_timeline(&state.pool, &path.id).await?;
 
@@ -278,6 +396,9 @@ pub async fn get_one(
         category,
         score,
         rank_position,
+        rankers_count,
+        agreement,
+        ranking_insight,
         timeline,
         created_at: p.created_at,
         updated_at: p.updated_at,
@@ -339,6 +460,9 @@ pub async fn create(
             namespace: ns_path.namespace,
             id,
         }),
+        OptionalAuthSession {
+            session: Some(session),
+        },
     )
     .await
 }
@@ -388,7 +512,14 @@ pub async fn update(
     .execute(&state.pool)
     .await?;
 
-    get_one(State(state), Path(path)).await
+    get_one(
+        State(state),
+        Path(path),
+        OptionalAuthSession {
+            session: Some(session),
+        },
+    )
+    .await
 }
 
 pub async fn update_status(
@@ -434,7 +565,14 @@ pub async fn update_status(
         .await?;
     }
 
-    get_one(State(state), Path(path)).await
+    get_one(
+        State(state),
+        Path(path),
+        OptionalAuthSession {
+            session: Some(session),
+        },
+    )
+    .await
 }
 
 pub async fn update_tracker(
@@ -474,5 +612,12 @@ pub async fn update_tracker(
         .await?;
     }
 
-    get_one(State(state), Path(path)).await
+    get_one(
+        State(state),
+        Path(path),
+        OptionalAuthSession {
+            session: Some(session),
+        },
+    )
+    .await
 }

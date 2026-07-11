@@ -2,6 +2,11 @@ import { Link } from 'react-router-dom';
 import { useNamespace } from '../context/NamespaceContext';
 import StatusBadge from './StatusBadge';
 
+const AGREEMENT_LABELS = {
+  consensus: 'Consenso',
+  polarized: 'Divide',
+};
+
 export default function ProposalCard({ proposal, showRank = true, maxScore = 1 }) {
   const { path } = useNamespace();
   const excerpt =
@@ -12,6 +17,7 @@ export default function ProposalCard({ proposal, showRank = true, maxScore = 1 }
   const score = proposal.score || 0;
   const scorePct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
   const isTop = showRank && proposal.rank_position === 1;
+  const agreement = proposal.agreement;
 
   return (
     <article className="proposal-card">
@@ -33,6 +39,18 @@ export default function ProposalCard({ proposal, showRank = true, maxScore = 1 }
             <span className="badge badge-category">{proposal.category.name}</span>
           )}
           <StatusBadge status={proposal.status} />
+          {agreement && AGREEMENT_LABELS[agreement] && (
+            <span
+              className={`badge badge-agreement badge-${agreement}`}
+              title={
+                agreement === 'consensus'
+                  ? 'Los vecinos coinciden en la prioridad de esta propuesta'
+                  : 'Las opiniones sobre esta propuesta están divididas'
+              }
+            >
+              {AGREEMENT_LABELS[agreement]}
+            </span>
+          )}
           {proposal.tracker && (
             <span className="card-tracker" title={`Responsable: ${proposal.tracker.name}`}>
               · {proposal.tracker.name}

@@ -20,14 +20,14 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 2. Notificaciones (email primero)
 3. ~~Cerrar superficies incompletas (edit / delete / upload)~~ ✅
 4. ~~Invitaciones al barrio~~ ✅
-5. Dashboard para space admins
-6. Explicar el ranking Borda
-7. Consenso vs conflicto
-8. Historia del perfil
+5. ~~Dashboard para space admins~~ ✅
+6. ~~Explicar el ranking Borda~~ ✅
+7. ~~Consenso vs conflicto~~ ✅
+8. ~~Historia del perfil~~ ✅
 9. Adjuntos / evidencia
 10. Digest semanal del barrio
 11. Moderación básica
-12. Roles más claros en onboarding
+12. ~~Roles más claros en onboarding~~ ✅
 13. Fase 2 (integraciones, mapa, app nativa, etc.)
 
 ---
@@ -116,7 +116,7 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 | Campo | Valor |
 |-------|-------|
-| Estado | `pendiente` |
+| Estado | `hecho` |
 | Prioridad | Alta |
 
 **Qué:** Panel con métricas básicas: % de miembros que priorizaron, propuestas más consensuadas vs polarizadas, pendientes de aprobación.
@@ -125,7 +125,9 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 **Notas / decisiones:**
 
--
+- `GET /{ns}/stats` (managers): `% priorización`, pendientes, listas consenso/polarizadas.
+- Pestaña **Dashboard** en Configuración (primera pestaña).
+- Consenso/polarización: desviación de posición relativa con ≥3 priorizadores.
 
 ---
 
@@ -135,7 +137,7 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 | Campo | Valor |
 |-------|-------|
-| Estado | `pendiente` |
+| Estado | `hecho` |
 | Prioridad | Media |
 
 **Qué:** Textos del estilo “Tu #1 suma X puntos; esta propuesta está #3 porque N vecinos la pusieron alto”.
@@ -144,7 +146,8 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 **Notas / decisiones:**
 
--
+- Hint en Priorizar con puntos por posición.
+- Panel “Cómo se calcula” en detalle (`ranking_insight.summary` + explicación Borda).
 
 ---
 
@@ -152,7 +155,7 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 | Campo | Valor |
 |-------|-------|
-| Estado | `pendiente` |
+| Estado | `hecho` |
 | Prioridad | Media |
 
 **Qué:** Destacar propuestas con ranking estable y las que dividen opiniones.
@@ -161,7 +164,8 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 **Notas / decisiones:**
 
--
+- Campo `agreement`: `consensus` | `polarized` en listado/detalle (si ≥3 vecinos).
+- Badges en cards; listas en dashboard admin.
 
 ---
 
@@ -169,7 +173,7 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 | Campo | Valor |
 |-------|-------|
-| Estado | `pendiente` |
+| Estado | `hecho` |
 | Prioridad | Media |
 
 **Qué:** En el perfil: “mis propuestas”, “mi ranking actual”, “comentarios recientes”.
@@ -178,7 +182,8 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 **Notas / decisiones:**
 
--
+- `GET /{ns}/activity/me` → propuestas propias, ranking con puntos Borda, comentarios.
+- UI en `/for/{ns}/perfil`.
 
 ---
 
@@ -239,7 +244,7 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 | Campo | Valor |
 |-------|-------|
-| Estado | `pendiente` |
+| Estado | `hecho` |
 | Prioridad | Media |
 
 **Qué:** Tutorial / copy que explique: quién propone, quién prioriza, qué hace un admin.
@@ -248,7 +253,8 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 **Notas / decisiones:**
 
--
+- Paso “Quién hace qué” en el tutorial; copy de roles en Perfil.
+- Tutorial clave `priora_tutorial_dismissed_v2` para re-mostrar a usuarios previos.
 
 ---
 
@@ -282,12 +288,12 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 | 2 | Notificaciones | pendiente | | |
 | 3 | Superficies incompletas | hecho | 2026-07-11 | Edit UI + delete comments + logo upload |
 | 4 | Invitaciones | hecho | 2026-07-11 | invite_code + share + accept-invite |
-| 5 | Dashboard admins | pendiente | | |
-| 6 | Explicar Borda | pendiente | | |
-| 7 | Consenso vs conflicto | pendiente | | |
-| 8 | Historia del perfil | pendiente | | |
+| 5 | Dashboard admins | hecho | 2026-07-11 | GET /stats + pestaña Dashboard |
+| 6 | Explicar Borda | hecho | 2026-07-11 | Priorizar + ranking_insight en detalle |
+| 7 | Consenso vs conflicto | hecho | 2026-07-11 | agreement en API + badges |
+| 8 | Historia del perfil | hecho | 2026-07-11 | GET /activity/me + UI perfil |
 | 9 | Adjuntos / evidencia | pendiente | | |
 | 10 | Digest semanal | pendiente | | |
 | 11 | Moderación básica | pendiente | | |
-| 12 | Onboarding de roles | pendiente | | |
+| 12 | Onboarding de roles | hecho | 2026-07-11 | Tutorial + copy de roles |
 | 13 | Fase 2 | pendiente | | |

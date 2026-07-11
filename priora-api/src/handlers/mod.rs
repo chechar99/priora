@@ -1,10 +1,12 @@
 mod auth;
 mod categories;
 mod comments;
+mod activity;
 mod membership;
 mod namespaces;
 mod proposals;
 mod rankings;
+mod stats;
 mod uploads;
 mod users;
 
@@ -126,6 +128,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route("/comments/{id}", delete(comments::delete_comment))
         .route("/rankings/me", get(rankings::get_my).put(rankings::save_my))
+        .route("/stats", get(stats::dashboard))
+        .route("/activity/me", get(activity::my_activity))
         .route("/membership/me", get(membership::me))
         .route("/membership/request", post(membership::request))
         .route("/membership/accept-invite", post(membership::redeem_invite))

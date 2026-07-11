@@ -336,6 +336,18 @@ export default function ProposalDetail() {
                 <strong>{proposal.score}</strong>
               </div>
             )}
+            {proposal.agreement === 'consensus' && (
+              <div className="row">
+                <span>Acuerdo</span>
+                <strong className="text-consensus">Consenso</strong>
+              </div>
+            )}
+            {proposal.agreement === 'polarized' && (
+              <div className="row">
+                <span>Acuerdo</span>
+                <strong className="text-polarized">Divide opiniones</strong>
+              </div>
+            )}
           </div>
 
           {proposal.score > 0 && (
@@ -350,6 +362,35 @@ export default function ProposalDetail() {
                   <p className="score-note">Mayor puntuación del espacio</p>
                 )}
               </div>
+            </div>
+          )}
+
+          {proposal.ranking_insight && (
+            <div className="panel ranking-insight-panel">
+              <h3>Cómo se calcula</h3>
+              <p className="ranking-insight-summary">{proposal.ranking_insight.summary}</p>
+              {proposal.agreement === 'consensus' && (
+                <p className="agreement-note consensus">Hay consenso entre quienes priorizaron.</p>
+              )}
+              {proposal.agreement === 'polarized' && (
+                <p className="agreement-note polarized">Esta propuesta divide opiniones.</p>
+              )}
+              <details className="borda-explainer">
+                <summary>Método Borda (en simple)</summary>
+                <p>
+                  Si hay {proposal.ranking_insight.points_for_first} propuestas en tu lista,
+                  tu #1 suma {proposal.ranking_insight.points_for_first} puntos, tu #2 suma{' '}
+                  {Math.max(proposal.ranking_insight.points_for_first - 1, 0)}, y así
+                  sucesivamente. El ranking global suma los puntos de todos los vecinos.
+                </p>
+                {proposal.ranking_insight.your_points != null && (
+                  <p>
+                    En tu priorización, esta propuesta es #{' '}
+                    {(proposal.ranking_insight.your_position ?? 0) + 1} y aporta{' '}
+                    <strong>{proposal.ranking_insight.your_points}</strong> puntos.
+                  </p>
+                )}
+              </details>
             </div>
           )}
         </aside>

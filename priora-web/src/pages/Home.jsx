@@ -51,7 +51,7 @@ export default function Home() {
       <div className="content-header">
         <div>
           <h1>Propuestas de {name}</h1>
-          <p>Ranking comunitario · actualizado hoy</p>
+          <p>Ranking comunitario · Borda · badges de consenso o división cuando hay datos</p>
         </div>
         <div className="actions">
           {user?.profile_complete && (

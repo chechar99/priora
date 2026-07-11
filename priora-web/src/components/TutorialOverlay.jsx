@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 
-const STORAGE_KEY = 'priora_tutorial_dismissed';
+const STORAGE_KEY = 'priora_tutorial_dismissed_v2';
 
 const STEPS = [
   {
     icon: '👋',
     title: 'Bienvenido a Priora',
-    body: 'Priora te ayuda a proponer mejoras y decidir en comunidad qué es más importante. Este recorrido rápido te muestra las funciones principales.',
+    body: 'Priora te ayuda a proponer mejoras y decidir en comunidad qué es más importante. Este recorrido rápido te muestra las funciones y los roles.',
   },
   {
     icon: '🏠',
@@ -14,29 +14,29 @@ const STEPS = [
     body: 'Cada espacio (barrio, edificio, organización) tiene sus propias propuestas y ranking. Tocá el nombre del espacio en el menú para cambiar a otro.',
   },
   {
+    icon: '👥',
+    title: 'Quién hace qué',
+    body: 'Todos priorizan y comentan. Solo proponentes y admins crean propuestas. El admin del espacio aprueba vecinos, invita e invita a configurar el barrio. El admin de plataforma gestiona roles globales y espacios.',
+  },
+  {
     icon: '📋',
     title: 'Propuestas',
-    body: 'En Propuestas ves el ranking comunitario: las ideas ordenadas por el apoyo de todos. Filtrá por estado o categoría y abrí una para ver el detalle.',
+    body: 'En Propuestas ves el ranking comunitario: las ideas ordenadas por el apoyo de todos (método Borda). Filtrá por estado o categoría y abrí una para ver el detalle.',
   },
   {
     icon: '↕',
     title: 'Priorizar',
-    body: 'En Priorizar ordenás las propuestas según lo que más te importa. Arrastrá para reordenar y guardá: tu orden suma al ranking global del espacio.',
+    body: 'En Priorizar ordenás las propuestas según lo que más te importa. Tu #1 suma más puntos; la última, menos. Arrastrá para reordenar y guardá: tu orden suma al ranking global.',
   },
   {
     icon: '＋',
     title: 'Nueva propuesta',
-    body: 'Con el botón + Nueva podés compartir una idea de mejora. Completá título, categoría y descripción para que el resto del espacio la priorice.',
+    body: 'Con el botón + Nueva (si sos proponente o admin) compartís una idea de mejora. Completá título, categoría y descripción para que el resto del espacio la priorice.',
   },
   {
     icon: '💬',
-    title: 'Comentarios',
-    body: 'Dentro de cada propuesta podés leer y publicar comentarios. Si el espacio pide autorización, un admin debe aprobarte antes de comentar.',
-  },
-  {
-    icon: '👤',
-    title: 'Perfil y participación',
-    body: 'En Perfil completás tu dirección para participar. Iniciá sesión para priorizar, comentar y crear propuestas. ¡Listo para empezar!',
+    title: 'Comentarios y perfil',
+    body: 'Dentro de cada propuesta podés comentar. En Perfil ves tus propuestas, tu ranking y comentarios recientes. Si el espacio pide autorización, un admin debe aprobarte antes de comentar.',
   },
 ];
 

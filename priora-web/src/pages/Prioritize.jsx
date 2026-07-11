@@ -148,7 +148,10 @@ export default function Prioritize() {
 
       <div className="prioritize-panel">
         <div className="hint">
-          Tu orden personal contribuye al ranking global. Los cambios se reflejan al guardar.
+          Tu orden personal contribuye al ranking global (método Borda). Si hay{' '}
+          {items.length || 'N'} propuestas, tu #1 suma {items.length || 'N'} puntos, tu #2 suma{' '}
+          {Math.max((items.length || 1) - 1, 0)}, y así hasta 1 punto para la última. Los
+          cambios se reflejan al guardar.
         </div>
 
         <div className="banner prioritize-mobile-hint" role="note">

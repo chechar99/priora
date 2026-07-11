@@ -140,6 +140,11 @@ pub struct ProposalListItem {
     pub category: Category,
     pub rank_position: i64,
     pub score: i64,
+    /// How many eligible users ranked this proposal.
+    pub rankers_count: i64,
+    /// "consensus" | "polarized" when enough data; otherwise omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agreement: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -167,6 +172,24 @@ pub struct TimelineEvent {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct RankingInsight {
+    pub rankers_count: i64,
+    pub top3_count: i64,
+    pub avg_position: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agreement: Option<String>,
+    /// Human-readable summary of why this proposal sits where it does.
+    pub summary: String,
+    /// Points the current user contributes (if authenticated and ranked).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub your_position: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub your_points: Option<i64>,
+    /// Points awarded for #1 given the length of a typical ranking list.
+    pub points_for_first: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ProposalDetail {
     pub id: String,
     pub title: String,
@@ -178,9 +201,71 @@ pub struct ProposalDetail {
     pub category: Category,
     pub score: i64,
     pub rank_position: Option<i64>,
+    pub rankers_count: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agreement: Option<String>,
+    pub ranking_insight: RankingInsight,
     pub timeline: Vec<TimelineEvent>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DashboardProposalSummary {
+    pub id: String,
+    pub title: String,
+    pub rank_position: i64,
+    pub score: i64,
+    pub rankers_count: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agreement: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SpaceDashboard {
+    pub require_member_approval: bool,
+    pub active_members: i64,
+    pub members_who_prioritized: i64,
+    /// Percentage of active members who have a ranking; null if no denominator.
+    pub prioritization_pct: Option<f64>,
+    pub pending_approvals: i64,
+    pub active_proposals: i64,
+    pub most_consensual: Vec<DashboardProposalSummary>,
+    pub most_polarized: Vec<DashboardProposalSummary>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ActivityProposal {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub rank_position: Option<i64>,
+    pub score: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ActivityRankingItem {
+    pub proposal_id: String,
+    pub title: String,
+    pub position: i64,
+    pub points: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ActivityComment {
+    pub id: String,
+    pub content: String,
+    pub proposal_id: String,
+    pub proposal_title: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MyActivityResponse {
+    pub proposals: Vec<ActivityProposal>,
+    pub ranking: Vec<ActivityRankingItem>,
+    pub comments: Vec<ActivityComment>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

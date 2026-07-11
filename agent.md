@@ -115,7 +115,10 @@ src/
     ├── membership.rs # Solicitar / aprobar / miembros
     ├── proposals.rs
     ├── comments.rs
-    └── rankings.rs
+    ├── rankings.rs
+    ├── stats.rs       # Dashboard del espacio
+    ├── activity.rs    # Historial del usuario
+    └── uploads.rs
 migrations/           # SQLx migrate
 ```
 
@@ -130,10 +133,12 @@ Prefijo: `/api`. Health: `GET /api/health`.
 | Namespaces | `GET/POST /namespaces` (POST admin), `GET/PATCH /namespaces/:slug` |
 | Invitaciones | `GET/POST /{ns}/invite` (managers), `POST /{ns}/membership/accept-invite` |
 | Membresía | `GET /{ns}/membership/me`, `POST /{ns}/membership/request`, `GET /{ns}/members`, `PATCH /{ns}/members/:user_id` |
-| Propuestas | `GET/POST /proposals`, `GET/PATCH /proposals/:id`, `PATCH .../status`, `PATCH .../tracker` — detalle incluye `timeline` (`proposal_events`) |
+| Propuestas | `GET/POST /proposals`, `GET/PATCH /proposals/:id`, `PATCH .../status`, `PATCH .../tracker` — detalle incluye `timeline`, `ranking_insight`, `agreement` |
 | Uploads | `POST /uploads/logo` (multipart) → `/uploads/…` (estático) |
 | Comentarios | `GET/POST /proposals/:id/comments`, `DELETE /comments/:id` |
 | Ranking | `GET/PUT /rankings/me` |
+| Stats | `GET /{ns}/stats` (managers) — % priorización, pendientes, consenso/conflicto |
+| Actividad | `GET /{ns}/activity/me` — propuestas, ranking y comentarios del usuario |
 
 ### Membresía por espacio
 
@@ -174,6 +179,8 @@ Algoritmo **Borda count**: cada usuario ordena propuestas activas/en_análisis; 
 
 Si el espacio tiene `require_member_approval`, solo cuentan rankings de miembros `active` (y admins de plataforma).
 
+Con ≥3 priorizadores, `agreement` puede ser `consensus` o `polarized` (desviación de posición relativa). El detalle expone `ranking_insight` en lenguaje humano.
+
 ### Tests BDD
 
 ```bash
@@ -197,7 +204,8 @@ Prefijo de barrio: `/for/{namespace}` (ver `src/routes.js`).
 | `/for/:namespace/propuestas/:id` | Detalle (editar / borrar comentarios) |
 | `/for/:namespace/propuestas/:id/editar` | Editar propuesta |
 | `/for/:namespace/propuestas/nueva` | Crear (logo upload o URL) |
-| `/settings` | Admin: aprobación, invitaciones, autorizaciones, miembros |
+| `/for/:namespace/perfil` | Perfil + historial (propuestas, ranking, comentarios) |
+| `/settings` | Dashboard, aprobación, invitaciones, autorizaciones, miembros |
 | `/login`, `/auth/callback`, `/completar-perfil` | Auth (fuera de `/for`) |
 
 La API usa `/api` en el mismo dominio en producción (`VITE_API_URL` vacío).

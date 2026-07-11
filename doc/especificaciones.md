@@ -400,6 +400,18 @@ La **priorización** no es un voto binario (sí/no) ni un puntaje absoluto. Cada
 - El score global de `p` es la suma de puntos de todos los usuarios que la incluyeron.
 - El listado se ordena por score descendente; empates se resuelven por fecha de creación (más antigua primero) o aleatoriamente estable.
 
+**Explicación en UI:**
+
+- En Priorizar se muestra cuántos puntos aporta cada posición (ej. “tu #1 suma N puntos”).
+- En el detalle, `ranking_insight` resume por qué está en esa posición (cuántos vecinos, top 3, aporte personal).
+
+**Consenso vs conflicto:**
+
+- Con ≥3 vecinos que priorizaron una propuesta, se calcula la desviación de la posición relativa.
+- Baja dispersión → `agreement: "consensus"` (badge Consenso).
+- Alta dispersión → `agreement: "polarized"` (badge Divide).
+- Sirve para mediación, no solo para “quién gana”.
+
 **Propuestas sin priorización de un usuario:**
 
 - Si un usuario no ha priorizado aún, no aporta puntos al ranking.
@@ -529,16 +541,24 @@ Cada comentario muestra:
 
 - Nombre y email (solo lectura, desde Google)
 - Formulario de dirección (editable)
-- Rol mostrado (solo lectura)
-- Historial de propuestas creadas (si Proponente/Admin) — opcional en prototipo
+- Rol global y rol en el espacio (solo lectura) con texto de ayuda
+- Historial del espacio: propuestas creadas, ranking personal (con puntos Borda), comentarios recientes
+- Acceso al tutorial (roles y flujos)
 
 ### 8.6 Configuración del espacio (admins)
 
 Ruta: `/settings` (usa el último espacio visitado).
 
+- **Dashboard:** % de miembros que priorizaron, pendientes de aprobación, propuestas más consensuadas vs polarizadas.
 - Toggle `require_member_approval`.
 - **Invitar vecinos:** mostrar URL de invitación, copiar texto para compartir, regenerar código.
 - Cola de autorizaciones pendientes y gestión de miembros (si aplica).
+
+### 8.7 Onboarding / tutorial
+
+- Overlay de primeros pasos (y “Ver tutorial” desde el perfil).
+- Explica: quién prioriza/comenta, quién crea propuestas (proponente/admin), qué hace el admin de espacio y el de plataforma.
+- Menciona el método Borda en el paso de priorizar.
 
 ---
 
@@ -584,6 +604,8 @@ priora-api/
 ├── proposals/     # CRUD, estados, tracker
 ├── categories/    # Listado de categorías
 ├── rankings/      # Priorización usuario, agregación Borda
+├── stats/         # Dashboard del espacio (managers)
+├── activity/      # Historial del usuario en el espacio
 ├── comments/      # CRUD comentarios
 └── uploads/       # Logos (POST /uploads/logo + ServeDir)
 ```
@@ -670,8 +692,8 @@ Prefijo: `/api`. Las rutas de propuestas, comentarios, ranking y membresía van 
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/proposals` | Listado con ranking y filtros (`?filter=active\|rejected&category=<id>`) |
-| GET | `/proposals/:id` | Detalle (incluye `timeline`) |
+| GET | `/proposals` | Listado con ranking, filtros y `agreement` / `rankers_count` |
+| GET | `/proposals/:id` | Detalle (incluye `timeline`, `ranking_insight`, `agreement`) |
 | POST | `/proposals` | Crear (Proponente/Admin) |
 | PATCH | `/proposals/:id` | Editar (autor en `activa` o admin); `logo_url: ""` limpia |
 | PATCH | `/proposals/:id/status` | Cambiar estado (Admin) |
@@ -683,6 +705,8 @@ Prefijo: `/api`. Las rutas de propuestas, comentarios, ranking y membresía van 
 |--------|------|-------------|
 | GET | `/rankings/me` | Orden personal del usuario |
 | PUT | `/rankings/me` | Guardar orden personal (`{ proposal_ids: [uuid, ...] }`) |
+| GET | `/stats` | Dashboard del espacio (managers): participación, pendientes, consenso/conflicto |
+| GET | `/activity/me` | Historial del usuario en el espacio: propuestas, ranking, comentarios |
 
 #### Comentarios (`/{ns}/…`)
 
@@ -835,7 +859,8 @@ cd priora-api && cargo test --test bdd
 4. ~~Edición de propuestas, borrado de comentarios, upload de logo~~.
 5. ~~Invitaciones al barrio (`?invite=`)~~.
 6. Ampliar cobertura BDD a auth, propuestas, ranking e invitaciones.
-7. Notificaciones, dashboard de admins y resto del backlog de potenciación.
+7. Notificaciones y resto del backlog de potenciación (adjuntos, digest, moderación, fase 2).
+8. ~~Dashboard de admins, explicación Borda, consenso/conflicto, historial de perfil y onboarding de roles.~~
 
 ---
 
@@ -884,6 +909,8 @@ API relevante (prefijo `/api`):
 | PATCH | `/namespaces/{slug}` | admin plataforma o space_admin (`require_member_approval`) |
 | GET | `/{ns}/invite` | admin plataforma o space_admin |
 | POST | `/{ns}/invite` | regenerar código (admin plataforma o space_admin) |
+| GET | `/{ns}/stats` | dashboard métricas (admin plataforma o space_admin) |
+| GET | `/{ns}/activity/me` | historial del usuario autenticado en el espacio |
 
 ---
 

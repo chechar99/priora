@@ -596,6 +596,67 @@ h3 {
   letter-spacing: normal;
 }
 
+.badge-agreement {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 600;
+}
+
+.badge-consensus {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-polarized {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.text-consensus {
+  color: #065f46;
+}
+
+.text-polarized {
+  color: #9a3412;
+}
+
+.ranking-insight-panel .ranking-insight-summary {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.agreement-note {
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.agreement-note.consensus {
+  color: #065f46;
+}
+
+.agreement-note.polarized {
+  color: #9a3412;
+}
+
+.borda-explainer {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.borda-explainer summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.borda-explainer p {
+  margin: 0.4rem 0;
+  line-height: 1.4;
+}
+
 .detail-badges {
   display: flex;
   flex-wrap: wrap;
@@ -1028,6 +1089,7 @@ h3 {
   color: var(--muted);
   font-size: 0.88rem;
   margin-bottom: 1.25rem;
+  line-height: 1.4;
 }
 
 .admin-list {
@@ -1546,6 +1608,111 @@ h3 {
   background: var(--border);
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
+}
+
+.profile-activity {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 900px) {
+  .profile-activity {
+    grid-template-columns: repeat(3, 1fr);
+    align-items: start;
+  }
+}
+
+.activity-list,
+.activity-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.activity-list li,
+.activity-ranking li {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-list li:last-child,
+.activity-ranking li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.activity-comment-body {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.activity-ranking li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.activity-pos {
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.activity-points {
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.stat-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.dashboard-columns {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 720px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dashboard-proposal-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.dashboard-proposal-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.9rem;
 }
 
 .error {

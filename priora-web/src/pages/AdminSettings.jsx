@@ -29,6 +29,104 @@ const statusLabels = {
 
 const USERS_PAGE_SIZE = 20;
 
+function DashboardTab() {
+  const { slug, path } = useNamespace();
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['spaceDashboard', slug],
+    queryFn: () => api.spaceDashboard(slug),
+  });
+
+  if (isLoading) return <p>Cargando métricas…</p>;
+  if (error) return <p className="error">{error.message}</p>;
+  if (!data) return null;
+
+  const pct = data.prioritization_pct;
+  const pctLabel =
+    pct == null
+      ? '—'
+      : `${pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)}%`;
+
+  return (
+    <section className="panel dashboard-panel">
+      <h2>Dashboard del espacio</h2>
+      <p className="section-hint">
+        Resumen para la reunión del barrio: participación, pendientes y propuestas
+        con consenso o conflicto.
+      </p>
+
+      <div className="stats-row">
+        <div className="stat-card">
+          <div className="label">Priorizaron</div>
+          <div className="value teal">{pctLabel}</div>
+          <p className="stat-sub">
+            {data.members_who_prioritized} de {data.active_members || '—'} miembros
+            activos
+          </p>
+        </div>
+        <div className="stat-card">
+          <div className="label">Pendientes de aprobación</div>
+          <div className={`value${data.pending_approvals > 0 ? ' blue' : ''}`}>
+            {data.pending_approvals}
+          </div>
+          {data.pending_approvals > 0 && (
+            <p className="stat-sub">
+              Revisá la pestaña Autorizaciones
+            </p>
+          )}
+        </div>
+        <div className="stat-card">
+          <div className="label">Propuestas en ranking</div>
+          <div className="value">{data.active_proposals}</div>
+        </div>
+      </div>
+
+      <div className="dashboard-columns">
+        <div>
+          <h3>Más consensuadas</h3>
+          {data.most_consensual.length === 0 ? (
+            <p className="muted">
+              Todavía no hay suficientes priorizaciones (≥3) con acuerdo claro.
+            </p>
+          ) : (
+            <ul className="dashboard-proposal-list">
+              {data.most_consensual.map((p) => (
+                <li key={p.id}>
+                  <span className="badge badge-agreement badge-consensus">Consenso</span>
+                  <Link to={path(`propuestas/${p.id}`)}>
+                    #{p.rank_position} {p.title}
+                  </Link>
+                  <span className="muted">{p.rankers_count} vecinos</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <h3>Más polarizadas</h3>
+          {data.most_polarized.length === 0 ? (
+            <p className="muted">
+              No hay propuestas que dividan opiniones de forma marcada.
+            </p>
+          ) : (
+            <ul className="dashboard-proposal-list">
+              {data.most_polarized.map((p) => (
+                <li key={p.id}>
+                  <span className="badge badge-agreement badge-polarized">Divide</span>
+                  <Link to={path(`propuestas/${p.id}`)}>
+                    #{p.rank_position} {p.title}
+                  </Link>
+                  <span className="muted">{p.rankers_count} vecinos</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function slugify(name) {
   return name
     .normalize('NFD')
@@ -795,7 +893,7 @@ export default function AdminSettings() {
   });
 
   const canManage = isGlobalAdmin || membership?.can_manage_space;
-  const [tab, setTab] = useState('space');
+  const [tab, setTab] = useState('dashboard');
 
   if (isLoading) {
     return <p>Cargando…</p>;
@@ -811,6 +909,7 @@ export default function AdminSettings() {
   }
 
   const tabs = [
+    { id: 'dashboard', label: 'Dashboard' },
     { id: 'space', label: 'Este espacio' },
     { id: 'authorizations', label: 'Autorizaciones' },
     { id: 'members', label: 'Miembros' },
@@ -827,7 +926,7 @@ export default function AdminSettings() {
       <div className="content-header">
         <div>
           <h1>Configuración</h1>
-          <p>Administración del espacio, autorizaciones y roles</p>
+          <p>Dashboard, administración del espacio, autorizaciones y roles</p>
         </div>
       </div>
 
@@ -849,6 +948,7 @@ export default function AdminSettings() {
       </div>
 
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+        {tab === 'dashboard' && <DashboardTab />}
         {tab === 'space' && <SpaceSettingsTab isGlobalAdmin={isGlobalAdmin} />}
         {tab === 'authorizations' && <AuthorizationsTab />}
         {tab === 'members' && <MembersTab isGlobalAdmin={isGlobalAdmin} />}
