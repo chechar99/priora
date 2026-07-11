@@ -68,7 +68,7 @@ Volúmenes en API: `/app/data`, `/app/uploads`.
 | Ruta en contenedor | Uso |
 |--------------------|-----|
 | `/app/data` | SQLite (`priora.db`) |
-| `/app/uploads` | Logos de propuestas |
+| `/app/uploads` | Imágenes de propuestas |
 
 ### Variables de entorno
 

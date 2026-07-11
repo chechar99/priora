@@ -154,7 +154,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             "/namespaces/{slug}",
             get(namespaces::get_one).patch(namespaces::update),
         )
-        .route("/uploads/logo", post(uploads::upload_logo))
+        .route("/uploads/image", post(uploads::upload_image))
         .nest("/{namespace}", scoped)
         .with_state(state.clone());
 

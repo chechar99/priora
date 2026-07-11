@@ -12,8 +12,9 @@ use crate::membership::{can_create_in_space, get_membership};
 use crate::error::{AppError, AppResult};
 use crate::handlers::{AppState, AuthSession, OptionalAuthSession};
 use crate::models::{
-    CreateProposalRequest, Namespace, Proposal, ProposalDetail, ProposalEvent, ProposalListItem,
-    RankingInsight, TimelineEvent, UpdateProposalRequest, UpdateStatusRequest, UpdateTrackerRequest,
+    encode_image_urls, CreateProposalRequest, Namespace, Proposal, ProposalDetail, ProposalEvent,
+    ProposalListItem, RankingInsight, TimelineEvent, UpdateProposalRequest, UpdateStatusRequest,
+    UpdateTrackerRequest,
 };
 use crate::ranking::compute_ranking_stats;
 
@@ -211,11 +212,12 @@ pub async fn list(
         let score = stats.map(|s| s.score).unwrap_or(0);
         let rankers_count = stats.map(|s| s.rankers_count).unwrap_or(0);
         let agreement = stats.and_then(|s| s.agreement.map(str::to_string));
+        let image_urls = p.parsed_image_urls();
         items.push(ProposalListItem {
             id: p.id,
             title: p.title,
             description: p.description,
-            logo_url: p.logo_url,
+            image_urls,
             status: p.status,
             author,
             tracker,
@@ -384,12 +386,13 @@ pub async fn get_one(
     );
 
     let timeline = load_timeline(&state.pool, &path.id).await?;
+    let image_urls = p.parsed_image_urls();
 
     Ok(Json(ProposalDetail {
         id: p.id,
         title: p.title,
         description: p.description,
-        logo_url: p.logo_url,
+        image_urls,
         status: p.status,
         author,
         tracker,
@@ -426,16 +429,19 @@ pub async fn create(
     }
     fetch_category(&state.pool, body.category_id.trim()).await?;
 
+    let image_urls_json = encode_image_urls(body.image_urls.as_deref().unwrap_or(&[]))
+        .map_err(AppError::BadRequest)?;
+
     let id = Uuid::new_v4().to_string();
     let now = Utc::now();
     sqlx::query(
-        "INSERT INTO proposals (id, title, description, logo_url, status, author_id, category_id, namespace_id, created_at, updated_at)
+        "INSERT INTO proposals (id, title, description, image_urls, status, author_id, category_id, namespace_id, created_at, updated_at)
          VALUES (?, ?, ?, ?, 'activa', ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(body.title.trim())
     .bind(body.description.trim())
-    .bind(&body.logo_url)
+    .bind(&image_urls_json)
     .bind(&user.id)
     .bind(body.category_id.trim())
     .bind(&ns.id)
@@ -484,10 +490,9 @@ pub async fn update(
 
     let title = body.title.unwrap_or(p.title);
     let description = body.description.unwrap_or(p.description);
-    let logo_url = match body.logo_url {
-        Some(s) if s.trim().is_empty() => None,
-        Some(s) => Some(s),
-        None => p.logo_url,
+    let image_urls_json = match body.image_urls {
+        Some(urls) => encode_image_urls(&urls).map_err(AppError::BadRequest)?,
+        None => p.image_urls,
     };
     let category_id = match body.category_id {
         Some(category_id) => {
@@ -501,11 +506,11 @@ pub async fn update(
     let now = Utc::now();
 
     sqlx::query(
-        "UPDATE proposals SET title = ?, description = ?, logo_url = ?, category_id = ?, updated_at = ? WHERE id = ?",
+        "UPDATE proposals SET title = ?, description = ?, image_urls = ?, category_id = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&title)
     .bind(&description)
-    .bind(&logo_url)
+    .bind(&image_urls_json)
     .bind(&category_id)
     .bind(now)
     .bind(&path.id)

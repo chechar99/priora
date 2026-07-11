@@ -84,6 +84,7 @@ export default function Profile() {
         </div>
       </div>
 
+      <div className="profile-layout">
       <div className="panel">
         <div className="profile-info">
           <p><strong>Nombre:</strong> {user.name}</p>
@@ -222,6 +223,7 @@ export default function Profile() {
             </ul>
           )}
         </section>
+      </div>
       </div>
     </div>
   );

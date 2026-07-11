@@ -200,8 +200,8 @@ async fn espacio_minimo(world: &mut BddWorld, slug: String) {
     } else {
         let id = Uuid::new_v4().to_string();
         sqlx::query(
-            "INSERT INTO namespaces (id, slug, name, require_member_approval, invite_code)
-             VALUES (?, ?, ?, 0, ?)",
+            "INSERT INTO namespaces (id, slug, name, description, is_hidden, require_member_approval, invite_code)
+             VALUES (?, ?, ?, '', 0, 0, ?)",
         )
         .bind(&id)
         .bind(&slug)

@@ -155,11 +155,14 @@ function SpaceSettingsTab({ isGlobalAdmin }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [copied, setCopied] = useState(false);
+  const [description, setDescription] = useState('');
 
   const { data: namespace, isLoading } = useQuery({
     queryKey: ['namespace', slug],
     queryFn: () => api.namespace(slug),
   });
+
+  const descriptionValue = description || namespace?.description || '';
 
   const { data: invite, isLoading: loadingInvite } = useQuery({
     queryKey: ['invite', slug],
@@ -167,18 +170,16 @@ function SpaceSettingsTab({ isGlobalAdmin }) {
   });
 
   const updateNs = useMutation({
-    mutationFn: (require_member_approval) =>
-      api.updateNamespace(slug, { require_member_approval }),
+    mutationFn: (data) => api.updateNamespace(slug, data),
     onSuccess: (data) => {
       queryClient.setQueryData(['namespace', slug], data);
+      queryClient.invalidateQueries({ queryKey: ['namespaces'] });
+      queryClient.invalidateQueries({ queryKey: ['namespaces', 'admin'] });
       queryClient.invalidateQueries({ queryKey: ['membership', slug] });
       queryClient.invalidateQueries({ queryKey: ['proposals', slug] });
+      setDescription('');
       setError('');
-      setSuccess(
-        data.require_member_approval
-          ? 'Aprobación de usuarios activada. Las priorizaciones y comentarios de no autorizados no tendrán efecto.'
-          : 'Aprobación desactivada. Todos los usuarios pueden priorizar y comentar.'
-      );
+      setSuccess('Configuración del espacio actualizada.');
     },
     onError: (e) => {
       setSuccess('');
@@ -230,16 +231,58 @@ function SpaceSettingsTab({ isGlobalAdmin }) {
     <section className="panel admin-section">
       <h2>Espacio: {name}</h2>
       <p className="section-hint">
-        Configuración de este espacio. Por defecto la aprobación es automática para facilitar
-        la experimentación.
+        Configuración de este espacio. La descripción se muestra en el listado público de espacios.
       </p>
 
-      <label className="admin-toggle">
+      <form
+        className="form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          updateNs.mutate({ description: descriptionValue.trim() });
+        }}
+      >
+        <label>
+          Descripción pública
+          <textarea
+            maxLength={500}
+            rows={3}
+            placeholder="En este espacio debatimos, valoramos y priorizamos las propuestas para mejorar nuestro barrio."
+            value={descriptionValue}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+        <button
+          type="submit"
+          className="btn btn-secondary btn-small"
+          disabled={updateNs.isPending || descriptionValue.trim() === (namespace.description || '')}
+        >
+          Guardar descripción
+        </button>
+      </form>
+
+      {isGlobalAdmin && (
+        <label className="admin-toggle" style={{ marginTop: '1.25rem' }}>
+          <input
+            type="checkbox"
+            checked={!!namespace.is_hidden}
+            disabled={updateNs.isPending}
+            onChange={(e) => updateNs.mutate({ is_hidden: e.target.checked })}
+          />
+          <span>
+            <strong>Espacio oculto</strong>
+            <span className="muted">
+              No aparece en el listado público; solo se accede conociendo la URL.
+            </span>
+          </span>
+        </label>
+      )}
+
+      <label className="admin-toggle" style={{ marginTop: '1.25rem' }}>
         <input
           type="checkbox"
           checked={!!namespace.require_member_approval}
           disabled={updateNs.isPending}
-          onChange={(e) => updateNs.mutate(e.target.checked)}
+          onChange={(e) => updateNs.mutate({ require_member_approval: e.target.checked })}
         />
         <span>
           <strong>Aprobación de usuarios requerida</strong>
@@ -609,28 +652,197 @@ function MembersTab({ isGlobalAdmin }) {
   );
 }
 
+function emptyNsForm() {
+  return {
+    name: '',
+    slug: '',
+    description: '',
+    isHidden: false,
+    requireMemberApproval: false,
+    slugTouched: false,
+  };
+}
+
+function nsToForm(ns) {
+  return {
+    name: ns.name,
+    slug: ns.slug,
+    description: ns.description || '',
+    isHidden: !!ns.is_hidden,
+    requireMemberApproval: !!ns.require_member_approval,
+    slugTouched: true,
+  };
+}
+
+function NamespaceForm({ form, setForm, isEdit, onSubmit, onCancel, isPending, error, success }) {
+  return (
+    <form
+      className="form namespace-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
+      <label>
+        Nombre
+        <input
+          required
+          maxLength={100}
+          placeholder="Priora"
+          value={form.name}
+          onChange={(e) => {
+            const name = e.target.value;
+            setForm((prev) => ({
+              ...prev,
+              name,
+              slug: prev.slugTouched || isEdit ? prev.slug : slugify(name),
+              slugTouched: prev.slugTouched,
+            }));
+          }}
+        />
+      </label>
+      <label>
+        Slug (URL)
+        <input
+          required
+          readOnly={isEdit}
+          pattern="[a-z0-9][a-z0-9-]{0,62}[a-z0-9]"
+          title="Minúsculas, números y guiones (mín. 2 caracteres)"
+          placeholder="priora"
+          value={form.slug}
+          onChange={(e) =>
+            setForm((prev) => ({
+              ...prev,
+              slug: e.target.value.toLowerCase(),
+              slugTouched: true,
+            }))
+          }
+        />
+        {isEdit && (
+          <span className="muted" style={{ fontSize: '0.85rem' }}>
+            El slug no se puede cambiar; forma parte de la URL del espacio.
+          </span>
+        )}
+      </label>
+      <label>
+        Descripción
+        <textarea
+          maxLength={500}
+          rows={3}
+          placeholder="Espacio para experimentar y mejorar Priora: probamos ideas, priorizamos mejoras y damos feedback sobre la plataforma."
+          value={form.description}
+          onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+        />
+      </label>
+      <label className="admin-toggle">
+        <input
+          type="checkbox"
+          checked={form.isHidden}
+          onChange={(e) => setForm((prev) => ({ ...prev, isHidden: e.target.checked }))}
+        />
+        <span>
+          <strong>Espacio oculto</strong>
+          <span className="muted">
+            No aparece en el listado público; solo se accede conociendo la URL.
+          </span>
+        </span>
+      </label>
+      {isEdit && (
+        <label className="admin-toggle">
+          <input
+            type="checkbox"
+            checked={form.requireMemberApproval}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, requireMemberApproval: e.target.checked }))
+            }
+          />
+          <span>
+            <strong>Aprobación de usuarios requerida</strong>
+            <span className="muted">
+              Si está activo, la priorización y los comentarios solo valen para usuarios
+              autorizados.
+            </span>
+          </span>
+        </label>
+      )}
+      <div className="namespace-form-actions">
+        <button type="submit" className="btn btn-primary" disabled={isPending}>
+          {isEdit ? 'Guardar cambios' : 'Crear espacio'}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={isPending}>
+          Cancelar
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {success && <p className="success">{success}</p>}
+    </form>
+  );
+}
+
 function NamespacesTab() {
   const queryClient = useQueryClient();
-  const [nsForm, setNsForm] = useState({ name: '', slug: '', slugTouched: false });
+  const [view, setView] = useState('list');
+  const [editingSlug, setEditingSlug] = useState(null);
+  const [search, setSearch] = useState('');
+  const [nsForm, setNsForm] = useState(emptyNsForm);
   const [nsError, setNsError] = useState('');
   const [nsSuccess, setNsSuccess] = useState('');
 
   const { data: namespaces = [], isLoading: loadingNs } = useQuery({
-    queryKey: ['namespaces'],
-    queryFn: () => api.namespaces(),
+    queryKey: ['namespaces', 'admin'],
+    queryFn: () => api.namespaces({ includeHidden: true }),
   });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return namespaces;
+    return namespaces.filter(
+      (ns) =>
+        ns.name?.toLowerCase().includes(q) ||
+        ns.slug?.toLowerCase().includes(q) ||
+        ns.description?.toLowerCase().includes(q)
+    );
+  }, [namespaces, search]);
+
+  const resetFormState = () => {
+    setNsForm(emptyNsForm());
+    setEditingSlug(null);
+    setNsError('');
+    setNsSuccess('');
+  };
+
+  const openCreate = () => {
+    resetFormState();
+    setView('form');
+  };
+
+  const openEdit = (ns) => {
+    setNsForm(nsToForm(ns));
+    setEditingSlug(ns.slug);
+    setNsError('');
+    setNsSuccess('');
+    setView('form');
+  };
+
+  const backToList = () => {
+    setView('list');
+    resetFormState();
+  };
 
   const createNs = useMutation({
     mutationFn: () =>
       api.createNamespace({
         name: nsForm.name.trim(),
         slug: nsForm.slug.trim(),
+        description: nsForm.description.trim() || undefined,
+        is_hidden: nsForm.isHidden,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['namespaces'] });
-      setNsForm({ name: '', slug: '', slugTouched: false });
-      setNsError('');
+      queryClient.invalidateQueries({ queryKey: ['namespaces', 'admin'] });
       setNsSuccess('Espacio creado correctamente');
+      setNsError('');
+      setTimeout(() => backToList(), 600);
     },
     onError: (e) => {
       setNsSuccess('');
@@ -638,84 +850,130 @@ function NamespacesTab() {
     },
   });
 
+  const updateNs = useMutation({
+    mutationFn: () =>
+      api.updateNamespace(editingSlug, {
+        name: nsForm.name.trim(),
+        description: nsForm.description.trim(),
+        is_hidden: nsForm.isHidden,
+        require_member_approval: nsForm.requireMemberApproval,
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['namespaces'] });
+      queryClient.invalidateQueries({ queryKey: ['namespaces', 'admin'] });
+      queryClient.setQueryData(['namespace', editingSlug], data);
+      setNsSuccess('Espacio actualizado correctamente');
+      setNsError('');
+      setTimeout(() => backToList(), 600);
+    },
+    onError: (e) => {
+      setNsSuccess('');
+      setNsError(e.message);
+    },
+  });
+
+  const isEdit = editingSlug != null;
+  const isPending = createNs.isPending || updateNs.isPending;
+
+  if (view === 'form') {
+    return (
+      <section className="panel admin-section">
+        <div className="namespace-panel-header">
+          <div>
+            <h2>{isEdit ? 'Editar espacio' : 'Agregar espacio'}</h2>
+            <p className="section-hint">
+              {isEdit
+                ? 'Modificá los datos del espacio. El slug no se puede cambiar.'
+                : 'Cada espacio tiene sus propias propuestas y ranking. El slug forma parte de la URL.'}
+            </p>
+          </div>
+        </div>
+        <NamespaceForm
+          form={nsForm}
+          setForm={setNsForm}
+          isEdit={isEdit}
+          isPending={isPending}
+          error={nsError}
+          success={nsSuccess}
+          onCancel={backToList}
+          onSubmit={() => (isEdit ? updateNs.mutate() : createNs.mutate())}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="panel admin-section">
-      <h2>Espacios</h2>
-      <p className="section-hint">
-        Cada espacio tiene sus propias propuestas y ranking. El slug forma parte de la URL.
-      </p>
+      <div className="namespace-panel-header">
+        <div>
+          <h2>Espacios</h2>
+          <p className="section-hint">
+            Cada espacio tiene sus propias propuestas y ranking. El slug forma parte de la URL.
+          </p>
+        </div>
+        <button type="button" className="btn btn-primary btn-small" onClick={openCreate}>
+          Agregar espacio
+        </button>
+      </div>
+
+      <div className="admin-toolbar">
+        <label className="admin-search">
+          <span className="sr-only">Buscar espacios</span>
+          <input
+            type="search"
+            placeholder="Buscar por nombre, slug o descripción…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+        {!loadingNs && (
+          <span className="muted admin-count">
+            {filtered.length === namespaces.length
+              ? `${namespaces.length} espacio${namespaces.length === 1 ? '' : 's'}`
+              : `${filtered.length} de ${namespaces.length}`}
+          </span>
+        )}
+      </div>
 
       {loadingNs ? (
         <p>Cargando espacios…</p>
+      ) : filtered.length === 0 ? (
+        <p className="muted">
+          {namespaces.length === 0
+            ? 'No hay espacios creados.'
+            : 'Ningún espacio coincide con la búsqueda.'}
+        </p>
       ) : (
         <ul className="admin-list">
-          {namespaces.map((ns) => (
+          {filtered.map((ns) => (
             <li key={ns.id} className="admin-list-item">
               <div>
                 <strong>{ns.name}</strong>
                 <span className="muted mono">{ns.slug}</span>
-                {ns.require_member_approval && (
-                  <span className="badge-warn" style={{ marginLeft: '0.5rem' }}>
-                    Aprobación requerida
-                  </span>
-                )}
+                {ns.description && <p className="admin-list-description">{ns.description}</p>}
+                <div className="admin-list-badges">
+                  {ns.is_hidden && <span className="badge-warn">Oculto</span>}
+                  {ns.require_member_approval && (
+                    <span className="badge-warn">Aprobación requerida</span>
+                  )}
+                </div>
               </div>
-              <Link to={namespacePath(ns.slug)} className="btn btn-small btn-secondary">
-                Abrir
-              </Link>
+              <div className="admin-actions">
+                <button
+                  type="button"
+                  className="btn btn-small btn-secondary"
+                  onClick={() => openEdit(ns)}
+                >
+                  Editar
+                </button>
+                <Link to={namespacePath(ns.slug)} className="btn btn-small btn-secondary">
+                  Abrir
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
       )}
-
-      <h3>Agregar espacio</h3>
-      <form
-        className="form form-inline-admin"
-        onSubmit={(e) => {
-          e.preventDefault();
-          createNs.mutate();
-        }}
-      >
-        <label>
-          Nombre
-          <input
-            required
-            maxLength={100}
-            placeholder="Priora"
-            value={nsForm.name}
-            onChange={(e) => {
-              const name = e.target.value;
-              setNsForm((prev) => ({
-                name,
-                slug: prev.slugTouched ? prev.slug : slugify(name),
-                slugTouched: prev.slugTouched,
-              }));
-            }}
-          />
-        </label>
-        <label>
-          Slug (URL)
-          <input
-            required
-            pattern="[a-z0-9][a-z0-9-]{0,62}[a-z0-9]"
-            title="Minúsculas, números y guiones (mín. 2 caracteres)"
-            placeholder="priora"
-            value={nsForm.slug}
-            onChange={(e) =>
-              setNsForm((prev) => ({
-                ...prev,
-                slug: e.target.value.toLowerCase(),
-                slugTouched: true,
-              }))
-            }
-          />
-        </label>
-        <button type="submit" className="btn btn-primary" disabled={createNs.isPending}>
-          Crear espacio
-        </button>
-      </form>
-      {nsError && <p className="error">{nsError}</p>}
-      {nsSuccess && <p className="success">{nsSuccess}</p>}
     </section>
   );
 }

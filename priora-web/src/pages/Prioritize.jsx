@@ -138,7 +138,7 @@ export default function Prioritize() {
   }
 
   return (
-    <div>
+    <div className="content-narrow">
       <div className="content-header">
         <div>
           <h1>Priorizar propuestas</h1>

@@ -27,8 +27,13 @@ export default function NamespacePicker() {
         <div className="namespace-list">
           {namespaces.map((ns) => (
             <Link key={ns.id} to={namespacePath(ns.slug)} className="namespace-card">
-              <strong>{ns.name}</strong>
-              <span>{FOR_PREFIX}/{ns.slug}</span>
+              <div className="namespace-card-body">
+                <strong>{ns.name}</strong>
+                {ns.description && (
+                  <p className="namespace-card-description">{ns.description}</p>
+                )}
+                <span>{FOR_PREFIX}/{ns.slug}</span>
+              </div>
             </Link>
           ))}
         </div>

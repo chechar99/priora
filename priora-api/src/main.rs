@@ -40,6 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = build_router(state);
     let addr = SocketAddr::from((config.host.parse::<std::net::IpAddr>()?, config.port));
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!("Priora API listening on http://{addr}");
     if config.dev_auth {
         tracing::info!("Dev auth enabled — POST /api/auth/dev-login");
@@ -50,7 +51,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 
     Ok(())

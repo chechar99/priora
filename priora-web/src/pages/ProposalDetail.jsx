@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../api/client';
+import { api, assetUrl } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../context/NamespaceContext';
@@ -53,6 +53,7 @@ export default function ProposalDetail() {
   const queryClient = useQueryClient();
   const [comment, setComment] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   const { data: proposal, isLoading, error } = useQuery({
     queryKey: ['proposal', slug, id],
@@ -128,6 +129,7 @@ export default function ProposalDetail() {
     membership?.require_member_approval && user?.profile_complete && !membership?.can_comment;
   const allowedStatuses = STATUS_TRANSITIONS[proposal.status] || [proposal.status];
   const timeline = proposal.timeline || [];
+  const imageUrls = Array.isArray(proposal.image_urls) ? proposal.image_urls : [];
 
   return (
     <div>
@@ -145,7 +147,51 @@ export default function ProposalDetail() {
               )}
             </div>
             <h1>{proposal.title}</h1>
+
+            {imageUrls.length > 0 && (
+              <ul className="proposal-gallery">
+                {imageUrls.map((url, index) => (
+                  <li key={`${url}-${index}`}>
+                    <button
+                      type="button"
+                      className="proposal-gallery-thumb"
+                      onClick={() => setLightboxUrl(url)}
+                      aria-label={`Ver imagen ${index + 1} en grande`}
+                    >
+                      <img src={assetUrl(url)} alt={`Imagen ${index + 1} de la propuesta`} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             <div className="body">{proposal.description}</div>
+
+            {lightboxUrl && (
+              <div
+                className="proposal-lightbox"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Vista ampliada de la imagen"
+                onClick={() => setLightboxUrl(null)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setLightboxUrl(null);
+                }}
+              >
+                <button
+                  type="button"
+                  className="proposal-lightbox-close"
+                  onClick={() => setLightboxUrl(null)}
+                >
+                  Cerrar
+                </button>
+                <img
+                  src={assetUrl(lightboxUrl)}
+                  alt="Imagen ampliada"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
 
             {isAdmin && (
               <div className="admin-panel">

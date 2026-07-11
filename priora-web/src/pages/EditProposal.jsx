@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import LogoField from '../components/LogoField';
+import ProposalImagesField from '../components/ProposalImagesField';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../context/NamespaceContext';
 
@@ -14,7 +14,7 @@ export default function EditProposal() {
   const [form, setForm] = useState({
     title: '',
     description: '',
-    logo_url: '',
+    image_urls: [],
     category_id: '',
   });
   const [error, setError] = useState('');
@@ -35,7 +35,7 @@ export default function EditProposal() {
     setForm({
       title: proposal.title || '',
       description: proposal.description || '',
-      logo_url: proposal.logo_url || '',
+      image_urls: Array.isArray(proposal.image_urls) ? proposal.image_urls : [],
       category_id: proposal.category?.id || '',
     });
     setReady(true);
@@ -46,7 +46,7 @@ export default function EditProposal() {
       api.updateProposal(slug, id, {
         title: form.title,
         description: form.description,
-        logo_url: form.logo_url || '',
+        image_urls: form.image_urls,
         category_id: form.category_id,
       }),
     onSuccess: (data) => navigate(path(`propuestas/${data.id}`)),
@@ -71,7 +71,7 @@ export default function EditProposal() {
   }
 
   return (
-    <div>
+    <div className="content-narrow">
       <div className="content-header">
         <div>
           <h1>Editar propuesta</h1>
@@ -122,9 +122,9 @@ export default function EditProposal() {
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
           </label>
-          <LogoField
-            value={form.logo_url}
-            onChange={(logo_url) => setForm({ ...form, logo_url })}
+          <ProposalImagesField
+            value={form.image_urls}
+            onChange={(image_urls) => setForm({ ...form, image_urls })}
           />
           {error && <p className="error">{error}</p>}
           <div className="actions">

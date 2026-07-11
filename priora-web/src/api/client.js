@@ -51,7 +51,12 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ role }),
     }),
-  namespaces: () => request('/api/namespaces'),
+  namespaces: (opts = {}) => {
+    const params = new URLSearchParams();
+    if (opts.includeHidden) params.set('include_hidden', 'true');
+    const q = params.toString();
+    return request(`/api/namespaces${q ? `?${q}` : ''}`);
+  },
   namespace: (slug) => request(`/api/namespaces/${slug}`),
   createNamespace: (data) =>
     request('/api/namespaces', { method: 'POST', body: JSON.stringify(data) }),
@@ -101,10 +106,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ tracker_id }),
     }),
-  uploadLogo: (file) => {
+  uploadImage: (file) => {
     const body = new FormData();
     body.append('file', file);
-    return request('/api/uploads/logo', { method: 'POST', body });
+    return request('/api/uploads/image', { method: 'POST', body });
   },
   comments: (namespace, id, limit = 10, offset = 0) =>
     request(`${nsPrefix(namespace)}/proposals/${id}/comments?limit=${limit}&offset=${offset}`),

@@ -14,10 +14,18 @@
   --warning-bg: #fffbeb;
   --error: #dc2626;
   --success: #10b981;
+  --content-max: 1180px;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(15, 41, 66, 0.04), 0 1px 3px rgba(15, 41, 66, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 41, 66, 0.06), 0 2px 4px rgba(15, 41, 66, 0.04);
+  --shadow-lg: 0 12px 32px rgba(15, 41, 66, 0.1);
   font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -195,6 +203,19 @@ a:hover {
   overflow-y: auto;
 }
 
+/* Center page content and cap its width so it never stretches awkwardly
+   on large screens, while filling the available space on smaller ones. */
+.content > * {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
+/* Single-column, form-first pages read better in a narrower centered column. */
+.content > .content-narrow {
+  max-width: 780px;
+}
+
 .content-header {
   display: flex;
   justify-content: space-between;
@@ -241,9 +262,10 @@ h3 {
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font: inherit;
   font-weight: 600;
   font-size: 0.85rem;
@@ -251,19 +273,27 @@ h3 {
   border: none;
   text-decoration: none;
   text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.05s ease;
 }
 
 .btn:hover {
   text-decoration: none;
 }
 
+.btn:active {
+  transform: translateY(1px);
+}
+
 .btn-primary {
   background: var(--primary);
   color: white;
+  box-shadow: 0 1px 2px rgba(13, 148, 136, 0.25);
 }
 
 .btn-primary:hover {
   background: var(--primary-dark);
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
 }
 
 .btn-primary:disabled {
@@ -317,8 +347,9 @@ h3 {
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 1rem 1.15rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-card .label {
@@ -494,17 +525,41 @@ h3 {
 .proposal-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 1.15rem 1.25rem;
   display: grid;
   grid-template-columns: 48px 1fr 120px;
   gap: 1rem;
   align-items: center;
-  transition: border-color 0.15s;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.proposal-card.has-thumb {
+  grid-template-columns: 48px 80px 1fr 120px;
 }
 
 .proposal-card:hover {
   border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.card-thumb {
+  display: block;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .rank-circle {
@@ -672,20 +727,6 @@ h3 {
   gap: 0.75rem;
 }
 
-.detail-logo {
-  margin: 0.85rem 0 0;
-  max-width: 12rem;
-}
-
-.detail-logo img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  object-fit: cover;
-}
-
 .score-bar {
   text-align: right;
 }
@@ -732,8 +773,9 @@ h3 {
 .detail-main {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .detail-main h1 {
@@ -1071,7 +1113,6 @@ h3 {
 }
 
 .admin-section {
-  max-width: 880px;
   margin-bottom: 1.5rem;
 }
 
@@ -1121,6 +1162,45 @@ h3 {
 .admin-list-item .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.8rem;
+}
+
+.admin-list-description {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.admin-list-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.namespace-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.namespace-panel-header .section-hint {
+  margin-bottom: 0;
+}
+
+.namespace-form {
+  max-width: 520px;
+  margin-top: 1rem;
+}
+
+.namespace-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .muted {
@@ -1200,9 +1280,10 @@ h3 {
 .comments-panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 1.25rem;
   margin-top: 1.5rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .comments-panel h2 {
@@ -1280,9 +1361,13 @@ h3 {
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 1.5rem;
-  max-width: 640px;
+  box-shadow: var(--shadow-sm);
+}
+
+.prioritize-panel {
+  max-width: 780px;
 }
 
 .prioritize-panel .hint {
@@ -1461,43 +1546,106 @@ h3 {
   border-color: var(--primary);
 }
 
-.logo-field {
+.proposal-images-field {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
 }
 
-.logo-field-label {
+.proposal-images-label {
   font-weight: 600;
   font-size: 0.88rem;
 }
 
-.logo-field-hint {
+.proposal-images-hint {
   margin: 0;
   font-size: 0.8rem;
   color: var(--muted);
 }
 
-.logo-preview {
+.proposal-images-preview {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
-.logo-preview img {
-  width: 72px;
-  height: 72px;
+.proposal-images-preview li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.proposal-images-preview img {
+  width: 96px;
+  height: 96px;
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid var(--border);
 }
 
-.logo-field-actions input[type='file'] {
+.proposal-images-actions input[type='file'] {
   font-size: 0.85rem;
 }
 
-.logo-url-fallback {
-  margin-top: 0.35rem;
+.proposal-gallery {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.proposal-gallery-thumb {
+  display: block;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: transparent;
+  cursor: pointer;
+  width: 112px;
+  height: 112px;
+}
+
+.proposal-gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.proposal-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.82);
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.proposal-lightbox img {
+  max-width: min(960px, 100%);
+  max-height: min(90vh, 100%);
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.proposal-lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
 }
 
 .invite-share {
@@ -1543,15 +1691,26 @@ h3 {
 }
 
 .namespace-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: block;
   padding: 1rem 1.1rem;
   border: 1px solid var(--border);
   border-radius: 10px;
   text-decoration: none;
   color: inherit;
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.namespace-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.namespace-card-description {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .namespace-card:hover {
@@ -1610,17 +1769,21 @@ h3 {
   border-radius: 4px;
 }
 
-.profile-activity {
+.profile-layout {
   display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: 1.25rem;
 }
 
 @media (min-width: 900px) {
-  .profile-activity {
-    grid-template-columns: repeat(3, 1fr);
+  .profile-layout {
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
     align-items: start;
   }
+}
+
+.profile-activity {
+  display: grid;
+  gap: 1rem;
 }
 
 .activity-list,
@@ -2017,6 +2180,15 @@ h3 {
     gap: 0.75rem;
     padding: 0.95rem 1rem;
     align-items: start;
+  }
+
+  .proposal-card.has-thumb {
+    grid-template-columns: 40px 64px 1fr;
+  }
+
+  .card-thumb {
+    width: 64px;
+    height: 64px;
   }
 
   .rank-circle {

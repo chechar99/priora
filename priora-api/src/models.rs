@@ -49,6 +49,8 @@ pub struct Namespace {
     pub id: String,
     pub slug: String,
     pub name: String,
+    pub description: String,
+    pub is_hidden: bool,
     pub require_member_approval: bool,
     /// Secret share token; omitted from public JSON (managers fetch via /invite).
     #[serde(skip_serializing)]
@@ -99,6 +101,9 @@ pub struct NamespaceMemberPublic {
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateNamespaceRequest {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub is_hidden: Option<bool>,
     pub require_member_approval: Option<bool>,
 }
 
@@ -118,7 +123,8 @@ pub struct Proposal {
     pub id: String,
     pub title: String,
     pub description: String,
-    pub logo_url: Option<String>,
+    /// JSON array of image URLs (max 3), stored as TEXT in SQLite.
+    pub image_urls: String,
     pub status: String,
     pub author_id: String,
     pub tracker_id: Option<String>,
@@ -128,12 +134,42 @@ pub struct Proposal {
     pub updated_at: DateTime<Utc>,
 }
 
+impl Proposal {
+    pub fn parsed_image_urls(&self) -> Vec<String> {
+        parse_image_urls(&self.image_urls)
+    }
+}
+
+pub fn parse_image_urls(raw: &str) -> Vec<String> {
+    serde_json::from_str::<Vec<String>>(raw)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|u| !u.trim().is_empty())
+        .take(3)
+        .collect()
+}
+
+pub fn encode_image_urls(urls: &[String]) -> Result<String, String> {
+    if urls.len() > 3 {
+        return Err("at most 3 images allowed".into());
+    }
+    let cleaned: Vec<String> = urls
+        .iter()
+        .map(|u| u.trim().to_string())
+        .filter(|u| !u.is_empty())
+        .collect();
+    if cleaned.len() > 3 {
+        return Err("at most 3 images allowed".into());
+    }
+    serde_json::to_string(&cleaned).map_err(|e| e.to_string())
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ProposalListItem {
     pub id: String,
     pub title: String,
     pub description: String,
-    pub logo_url: Option<String>,
+    pub image_urls: Vec<String>,
     pub status: String,
     pub author: UserPublic,
     pub tracker: Option<UserPublic>,
@@ -194,7 +230,7 @@ pub struct ProposalDetail {
     pub id: String,
     pub title: String,
     pub description: String,
-    pub logo_url: Option<String>,
+    pub image_urls: Vec<String>,
     pub status: String,
     pub author: UserPublic,
     pub tracker: Option<UserPublic>,
@@ -297,6 +333,8 @@ pub struct UpdateProfileRequest {
 pub struct CreateNamespaceRequest {
     pub slug: String,
     pub name: String,
+    pub description: Option<String>,
+    pub is_hidden: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -308,7 +346,8 @@ pub struct UpdateRoleRequest {
 pub struct CreateProposalRequest {
     pub title: String,
     pub description: String,
-    pub logo_url: Option<String>,
+    #[serde(default)]
+    pub image_urls: Option<Vec<String>>,
     pub category_id: String,
 }
 
@@ -316,7 +355,7 @@ pub struct CreateProposalRequest {
 pub struct UpdateProposalRequest {
     pub title: Option<String>,
     pub description: Option<String>,
-    pub logo_url: Option<String>,
+    pub image_urls: Option<Vec<String>>,
     pub category_id: Option<String>,
 }
 

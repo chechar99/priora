@@ -24,7 +24,7 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 6. ~~Explicar el ranking Borda~~ ✅
 7. ~~Consenso vs conflicto~~ ✅
 8. ~~Historia del perfil~~ ✅
-9. Adjuntos / evidencia
+9. ~~Adjuntos / evidencia~~ ✅
 10. Digest semanal del barrio
 11. Moderación básica
 12. ~~Roles más claros en onboarding~~ ✅
@@ -191,7 +191,7 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 | Campo | Valor |
 |-------|-------|
-| Estado | `pendiente` |
+| Estado | `hecho` |
 | Prioridad | Media |
 
 **Qué:** Fotos del problema (bache, plaza, etc.), no solo logo de la propuesta.
@@ -200,7 +200,10 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 
 **Notas / decisiones:**
 
--
+- Reemplaza `logo_url` por `image_urls` (JSON, 0–3).
+- `POST /api/uploads/image`: JPEG/PNG/WebP ≤ 2 MB; redimensiona lado largo ≤ 1600 px; guarda JPEG.
+- Mini galería en detalle + miniatura de la primera en cards del listado.
+- Opcional; sin pegar URL externa.
 
 ---
 
@@ -292,7 +295,7 @@ Orden sugerido: cerrar el ciclo cívico → adopción → diferenciación → fa
 | 6 | Explicar Borda | hecho | 2026-07-11 | Priorizar + ranking_insight en detalle |
 | 7 | Consenso vs conflicto | hecho | 2026-07-11 | agreement en API + badges |
 | 8 | Historia del perfil | hecho | 2026-07-11 | GET /activity/me + UI perfil |
-| 9 | Adjuntos / evidencia | pendiente | | |
+| 9 | Adjuntos / evidencia | hecho | 2026-07-11 | image_urls (max 3) + resize server + gallery |
 | 10 | Digest semanal | pendiente | | |
 | 11 | Moderación básica | pendiente | | |
 | 12 | Onboarding de roles | hecho | 2026-07-11 | Tutorial + copy de roles |

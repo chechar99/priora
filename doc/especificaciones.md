@@ -27,7 +27,7 @@ Solo usuarios con roles especiales (**Administrador** o **Proponente**) pueden c
 |------|---------|
 | Autenticación | Google OAuth + registro de dirección obligatorio |
 | Propuestas | Listado, detalle, creación y edición (roles restringidos), estados, categoría, timeline |
-| Logos | Subida multipart (JPEG/PNG/WebP ≤ 2 MB) o URL; servidos desde `/uploads` |
+| Imágenes | Hasta 3 por propuesta (JPEG/PNG/WebP ≤ 2 MB); redimensionadas en servidor; mini galería en detalle + thumb en listado |
 | Categorías | Catálogo fijo con 6 categorías por defecto; filtro en listado |
 | Priorización | Orden relativo de propuestas por usuario autenticado |
 | Comentarios | Foro por propuesta, últimos 10 visibles en detalle; borrado por autor o admin |
@@ -276,7 +276,7 @@ Una **propuesta** es una idea de mejora vecinal presentada por un Proponente o A
 | `id` | UUID | — | Identificador interno |
 | `titulo` | texto (max 200) | Sí | Título breve y descriptivo |
 | `descripcion` | texto largo (max 5000) | Sí | Detalle de la propuesta |
-| `logo_url` | URL / archivo | No | Imagen representativa (opcional) |
+| `image_urls` | array de URLs (0–3) | No | Imágenes de evidencia (opcional) |
 | `estado` | enum | Sí | Ver §5.3 |
 | `tracker` | referencia usuario | No | Responsable de seguimiento (admin asigna) |
 | `autor_id` | referencia usuario | Sí | Quien creó la propuesta |
@@ -308,17 +308,17 @@ Los usuarios regulares y proponentes **no** pueden cambiar el estado.
 
 **Crear propuesta** (Proponente / Administrador / admin de espacio con permiso de creación):
 
-1. Formulario: título, descripción, categoría (obligatoria), logo opcional (subida de imagen o URL).
+1. Formulario: título, descripción, categoría (obligatoria), hasta 3 imágenes opcionales (subida de archivo).
 2. Estado inicial: siempre `activa`.
 3. Tras guardar, redirección al detalle de la propuesta creada.
 4. Ruta UI: `/for/{ns}/propuestas/nueva`.
 
 **Editar propuesta:**
 
-- El **autor** puede editar título, descripción, categoría y logo mientras el estado sea `activa`.
+- El **autor** puede editar título, descripción, categoría e imágenes mientras el estado sea `activa`.
 - Un **Administrador** de plataforma puede editar cualquier propuesta en cualquier estado.
 - Ruta UI: `/for/{ns}/propuestas/{id}/editar` (botón **Editar** en el detalle).
-- Enviar `logo_url: ""` en el PATCH limpia el logo.
+- Enviar `image_urls: []` en el PATCH limpia las imágenes.
 - Cambios de estado no borran comentarios ni priorizaciones.
 
 ### 5.5 Tracker (responsable de seguimiento)
@@ -328,14 +328,15 @@ Los usuarios regulares y proponentes **no** pueden cambiar el estado.
 - Se muestra en la página de detalle con nombre y, opcionalmente, avatar.
 - No implica permisos adicionales en el prototipo; es informativo.
 
-### 5.6 Logo / imagen
+### 5.6 Imágenes de evidencia
 
+- Hasta **3 imágenes** opcionales por propuesta (`image_urls`).
 - Formatos aceptados: JPEG, PNG, WebP.
-- Tamaño máximo: 2 MB.
-- **Subida:** `POST /api/uploads/logo` (multipart, campo `file`) → `{ "url": "/uploads/{uuid}.ext" }`.
+- Tamaño máximo de subida: 2 MB por archivo.
+- **Subida:** `POST /api/uploads/image` (multipart, campo `file`) → `{ "url": "/uploads/{uuid}.jpg" }`.
+- **Procesado en servidor:** redimensiona manteniendo aspect ratio (lado largo máx. 1600 px) y re-encode a JPEG calidad ~85.
 - **Almacenamiento:** directorio `uploads/` del API, servido en estático en `/uploads/…`.
-- Alternativa: pegar una URL externa en el formulario (se guarda en `logo_url`).
-- En detalle se muestra la imagen si hay `logo_url`; si no, no se fuerza placeholder en listado (opcional en UI).
+- En detalle: mini galería (click abre vista ampliada). En listado: miniatura de la primera imagen si hay.
 
 ### 5.7 Categorías
 
@@ -508,7 +509,7 @@ Cada comentario muestra:
   - Extracto de descripción (primeras 150 caracteres)
   - Badge de categoría
   - Badge de estado (`en_analisis` resaltado)
-  - Logo en miniatura si existe
+  - Miniatura de la primera imagen si existe
   - Score o indicador visual de apoyo (opcional)
 - CTA: **Priorizar** (si autenticado).
 - CTA: **Nueva propuesta** (solo Proponente / Administrador).
@@ -522,7 +523,7 @@ Cada comentario muestra:
 
 **Secciones:**
 
-1. **Cabecera:** título, logo (si hay), badges de estado y categoría; botón **Editar** si aplica (§5.4).
+1. **Cabecera:** título, mini galería de imágenes (si hay), badges de estado y categoría; botón **Editar** si aplica (§5.4).
 2. **Metadatos / seguimiento:** autor, fecha, categoría, tracker, historial (`timeline` de `proposal_events`).
 3. **Descripción** completa.
 4. **Acciones admin:** cambiar estado, asignar tracker (solo Administrador de plataforma).
@@ -534,7 +535,7 @@ Cada comentario muestra:
 - Título (input)
 - Categoría (select obligatorio, opciones del catálogo)
 - Descripción (textarea con contador de caracteres)
-- Logo: file input con preview (subida multipart) **o** URL
+- Imágenes: hasta 3 (file input con preview; subida multipart)
 - Botones: Guardar / Cancelar
 
 ### 8.5 Perfil de usuario
@@ -607,7 +608,7 @@ priora-api/
 ├── stats/         # Dashboard del espacio (managers)
 ├── activity/      # Historial del usuario en el espacio
 ├── comments/      # CRUD comentarios
-└── uploads/       # Logos (POST /uploads/logo + ServeDir)
+└── uploads/       # Imágenes (POST /uploads/image + ServeDir)
 ```
 
 ### 9.3 Frontend (React JS)
@@ -685,7 +686,7 @@ Prefijo: `/api`. Las rutas de propuestas, comentarios, ranking y membresía van 
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | `/uploads/logo` | Multipart `file` → `{ url: "/uploads/…" }` |
+| POST | `/uploads/image` | Multipart `file` → procesa y guarda JPEG → `{ url: "/uploads/…" }` |
 | GET | `/uploads/:file` | Estático (fuera de `/api`, raíz del servidor) |
 
 #### Propuestas (`/{ns}/…`)
@@ -695,7 +696,7 @@ Prefijo: `/api`. Las rutas de propuestas, comentarios, ranking y membresía van 
 | GET | `/proposals` | Listado con ranking, filtros y `agreement` / `rankers_count` |
 | GET | `/proposals/:id` | Detalle (incluye `timeline`, `ranking_insight`, `agreement`) |
 | POST | `/proposals` | Crear (Proponente/Admin) |
-| PATCH | `/proposals/:id` | Editar (autor en `activa` o admin); `logo_url: ""` limpia |
+| PATCH | `/proposals/:id` | Editar (autor en `activa` o admin); `image_urls: []` limpia |
 | PATCH | `/proposals/:id/status` | Cambiar estado (Admin) |
 | PATCH | `/proposals/:id/tracker` | Asignar tracker (Admin) |
 
@@ -756,7 +757,7 @@ CREATE TABLE proposals (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title           TEXT NOT NULL,
     description     TEXT NOT NULL,
-    logo_url        TEXT,
+    image_urls      TEXT NOT NULL DEFAULT '[]',  -- JSON array, max 3 URLs
     status          TEXT NOT NULL DEFAULT 'activa',  -- activa | en_analisis | rechazada
     author_id       UUID NOT NULL REFERENCES users(id),
     tracker_id      UUID REFERENCES users(id),
@@ -805,7 +806,7 @@ CREATE TABLE comments (
 1. Un usuario puede iniciar sesión con Google y completar su dirección.
 2. La home muestra propuestas activas y en análisis ordenadas por ranking global.
 3. Un usuario autenticado puede guardar su priorización personal y ver el listado actualizado.
-4. Un Proponente puede crear una propuesta con título, descripción, categoría y logo opcional (archivo o URL).
+4. Un Proponente puede crear una propuesta con título, descripción, categoría y hasta 3 imágenes opcionales.
 5. El autor puede editar su propuesta en estado `activa`; un admin puede editar cualquiera.
 6. La página de detalle muestra campos, categoría, tracker, estado, timeline y últimos 10 comentarios.
 7. Los usuarios pueden publicar comentarios en propuestas activas y en análisis; autor o admin pueden borrarlos.
@@ -846,7 +847,7 @@ cd priora-api && cargo test --test bdd
 | Usuarios anónimos | Solo lectura vs redirección a login | Solo lectura en listado/detalle |
 | Primer administrador | Seed en DB vs variable de entorno vs script | `scripts/set-role.sh` (ver `doc/despliegue.md` §8) |
 | Aprobación al activar el toggle | Resetear miembros existentes vs solo nuevos | Solo nuevos: quien ya está `active` sigue; quien no tiene membresía debe solicitar |
-| Almacenamiento de logos | Object storage vs directorio local | Directorio `uploads/` en el API (prototipo) |
+| Almacenamiento de imágenes | Object storage vs directorio local | Directorio `uploads/` en el API (prototipo) |
 | Invitación vs aprobación | ¿El invite salta la cola? | Sí: canje → `active` de inmediato |
 
 ---
@@ -859,8 +860,9 @@ cd priora-api && cargo test --test bdd
 4. ~~Edición de propuestas, borrado de comentarios, upload de logo~~.
 5. ~~Invitaciones al barrio (`?invite=`)~~.
 6. Ampliar cobertura BDD a auth, propuestas, ranking e invitaciones.
-7. Notificaciones y resto del backlog de potenciación (adjuntos, digest, moderación, fase 2).
+7. Notificaciones y resto del backlog de potenciación (digest, moderación, fase 2).
 8. ~~Dashboard de admins, explicación Borda, consenso/conflicto, historial de perfil y onboarding de roles.~~
+9. ~~Imágenes de evidencia (hasta 3 por propuesta)~~.
 
 ---
 
@@ -914,5 +916,5 @@ API relevante (prefijo `/api`):
 
 ---
 
-*Versión del documento: 1.2 — Edición, logos, borrado de comentarios e invitaciones*  
+*Versión del documento: 1.3 — Imágenes de evidencia (hasta 3) reemplazan logo*  
 *Última actualización: julio 2026*

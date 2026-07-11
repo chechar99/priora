@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { assetUrl } from '../api/client';
 import { useNamespace } from '../context/NamespaceContext';
 import StatusBadge from './StatusBadge';
 
@@ -18,15 +19,21 @@ export default function ProposalCard({ proposal, showRank = true, maxScore = 1 }
   const scorePct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
   const isTop = showRank && proposal.rank_position === 1;
   const agreement = proposal.agreement;
+  const thumb = Array.isArray(proposal.image_urls) ? proposal.image_urls[0] : null;
 
   return (
-    <article className="proposal-card">
+    <article className={`proposal-card${thumb ? ' has-thumb' : ''}`}>
       {showRank && proposal.rank_position > 0 ? (
         <div className={`rank-circle${isTop ? ' top' : ''}`}>
           #{proposal.rank_position}
         </div>
       ) : (
         <div className="rank-circle rank-circle-empty" aria-hidden="true" />
+      )}
+      {thumb && (
+        <Link to={path(`propuestas/${proposal.id}`)} className="card-thumb" tabIndex={-1}>
+          <img src={assetUrl(thumb)} alt="" />
+        </Link>
       )}
       <div className="card-main">
         <h2>
