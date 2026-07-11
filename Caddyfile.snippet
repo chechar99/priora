@@ -1,0 +1,20 @@
+# Snippet for the global Caddyfile (~/.config/caddy/Caddyfile).
+# Copy this block into the global config (do not run Caddy from this file alone).
+#
+# Ports: API 3100 · Vite 5190 · URL http://priora.localhost:8080
+
+http://priora.localhost:8080 {
+	encode gzip
+
+	handle /api* {
+		reverse_proxy 127.0.0.1:3100
+	}
+
+	handle /uploads* {
+		reverse_proxy 127.0.0.1:3100
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:5190
+	}
+}

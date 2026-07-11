@@ -12,5 +12,11 @@ priora-web/.env
 priora-web/.env.local
 priora-web/.env.*.local
 
+# Deploy
+deploy.env
+
+# Backups locales de la DB de producción
+backups/
+
 # OS
 .DS_Store

@@ -27,7 +27,13 @@ export default function Home() {
     queryFn: () => api.proposals(slug, 'active'),
   });
 
-  const canCreate = user && (user.role === 'admin' || user.role === 'proponent');
+  const { data: membership } = useQuery({
+    queryKey: ['membership', slug],
+    queryFn: () => api.membershipMe(slug),
+    enabled: !!user,
+  });
+
+  const canCreate = membership?.can_create_proposal;
 
   const stats = useMemo(() => ({
     activas: activeProposals.filter((p) => p.status === 'activa').length,

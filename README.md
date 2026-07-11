@@ -14,35 +14,39 @@ Plataforma para crear, priorizar y discutir propuestas de mejora vecinal.
 ```bash
 chmod +x scripts/dev.sh
 ./scripts/dev.sh install
+brew install caddy   # si aún no lo tenés
 ```
 
-### 2. Iniciar el backend (terminal 1)
+### 2. Tres terminales
 
 ```bash
-./scripts/dev.sh api
+./scripts/dev.sh api     # 127.0.0.1:3100
+./scripts/dev.sh web     # 127.0.0.1:5190
+./scripts/dev.sh proxy   # Caddy global → http://priora.localhost:8080
 ```
 
-API en `http://127.0.0.1:3000`
+Abrí la app en **http://priora.localhost:8080** (API y frontend detrás del mismo host).
 
-### 3. Iniciar el frontend (terminal 2)
-
-```bash
-./scripts/dev.sh web
-```
-
-App en `http://localhost:5173`
-
+El proxy es compartido: `~/.config/caddy/Caddyfile`. El bloque de Priora está en `Caddyfile.snippet` (para copiar/actualizar el global).
 ## Probar el prototipo
 
 En la pantalla de login hay **usuarios de prueba** (modo desarrollo):
 
 | Usuario | Rol |
 |---------|-----|
-| Juan Vecino | Usuario regular |
-| María Proponente | Proponente |
-| Administrador | Admin |
+| `admin@priora.local` | Administrador |
+| `proponente@priora.local` / Sofía Navarro | Proponente |
+| `carlos.mendez@priora.local` (y otros) | Regular |
 
 También puedes usar **Google OAuth** configurando las variables en `priora-api/.env`.
+
+### Tests BDD (API)
+
+```bash
+cd priora-api && cargo test --test bdd
+```
+
+Escenarios Gherkin de membresía/aprobación por espacio. Ver `doc/especificaciones.md` §11.1.
 
 ### Flujo sugerido
 
@@ -52,7 +56,7 @@ También puedes usar **Google OAuth** configurando las variables en `priora-api/
 4. Comenta en una propuesta.
 5. Entra como **María Proponente** → crea una nueva propuesta.
 6. Entra como **Administrador** → cambia el estado de una propuesta.
-7. Impersona a otro usuario: `http://localhost:5173/?priora_as=carlos.mendez@priora.local`
+7. Impersona a otro usuario: `http://priora.localhost:8080/?priora_as=carlos.mendez@priora.local`
 
 ### Impersonación
 
@@ -71,6 +75,7 @@ También puedes usar **Google OAuth** configurando las variables en `priora-api/
 
 ```
 priora/
+├── Caddyfile.snippet # Bloque Priora → ~/.config/caddy/Caddyfile
 ├── doc/              # Especificaciones (español)
 ├── priora-api/       # Backend Rust
 ├── priora-web/       # Frontend React

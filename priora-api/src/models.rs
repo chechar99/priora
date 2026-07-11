@@ -49,7 +49,54 @@ pub struct Namespace {
     pub id: String,
     pub slug: String,
     pub name: String,
+    pub require_member_approval: bool,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct NamespaceMember {
+    pub namespace_id: String,
+    pub user_id: String,
+    pub role: String,
+    pub status: String,
+    pub requested_at: DateTime<Utc>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub reviewed_by: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MembershipMeResponse {
+    pub require_member_approval: bool,
+    pub membership: Option<NamespaceMemberPublic>,
+    pub can_comment: bool,
+    pub ranking_counts: bool,
+    pub can_manage_space: bool,
+    pub can_create_proposal: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct NamespaceMemberPublic {
+    pub user_id: String,
+    pub name: String,
+    pub email: String,
+    pub picture_url: Option<String>,
+    pub street: Option<String>,
+    pub city: Option<String>,
+    pub role: String,
+    pub status: String,
+    pub requested_at: DateTime<Utc>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateNamespaceRequest {
+    pub require_member_approval: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateMemberRequest {
+    pub status: Option<String>,
+    pub role: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -121,6 +168,17 @@ pub struct UpdateProfileRequest {
     pub floor_apt: Option<String>,
     pub city: String,
     pub postal_code: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateNamespaceRequest {
+    pub slug: String,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateRoleRequest {
+    pub role: String,
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,6 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../api/client';
+import MembershipBanner from './MembershipBanner';
+import TutorialOverlay from './TutorialOverlay';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../context/NamespaceContext';
+import { FOR_PREFIX } from '../routes';
 
 function getInitials(name) {
   return name
@@ -21,13 +27,40 @@ function isProposalsRoute(pathname, basePath) {
 
 export default function Layout() {
   const { user, impersonator, logout, stopImpersonating } = useAuth();
-  const { slug, name, path } = useNamespace();
+  const { name, path, slug } = useNamespace();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const basePath = path();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const { data: membership } = useQuery({
+    queryKey: ['membership', slug],
+    queryFn: () => api.membershipMe(slug),
+    enabled: !!user,
+  });
+
+  const canManageSpace = user?.role === 'admin' || membership?.can_manage_space;
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   const handleLogout = () => {
     logout();
+    setMenuOpen(false);
     navigate(path());
   };
 
@@ -36,8 +69,10 @@ export default function Layout() {
     navigate(path());
   };
 
+  const navClass = ({ isActive }) => (isActive ? 'active' : '');
+
   return (
-    <div className="app">
+    <div className={`app${menuOpen ? ' menu-open' : ''}`}>
       {impersonator && user && (
         <div className="impersonation-banner">
           <span>
@@ -49,14 +84,53 @@ export default function Layout() {
         </div>
       )}
 
+      <header className="mobile-topbar">
+        <Link to={path()} className="sidebar-logo mobile-topbar-logo">
+          <span className="sidebar-logo-icon">P</span>
+          Priora
+        </Link>
+        <Link to={FOR_PREFIX} className="mobile-namespace" title="Cambiar espacio">
+          {name}
+        </Link>
+        <button
+          type="button"
+          className="mobile-menu-btn"
+          aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <span className="mobile-menu-icon" aria-hidden="true" />
+        </button>
+      </header>
+
+      {menuOpen && (
+        <button
+          type="button"
+          className="mobile-overlay"
+          aria-label="Cerrar menú"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
+
       <div className="app-shell">
         <aside className="sidebar">
-          <Link to={path()} className="sidebar-logo">
+          <div className="sidebar-drawer-header">
+            <span className="sidebar-drawer-title">Menú</span>
+            <button
+              type="button"
+              className="mobile-menu-btn sidebar-drawer-close"
+              aria-label="Cerrar menú"
+              onClick={() => setMenuOpen(false)}
+            >
+              <span className="mobile-menu-icon" aria-hidden="true" />
+            </button>
+          </div>
+          <Link to={path()} className="sidebar-logo desktop-only">
             <span className="sidebar-logo-icon">P</span>
             Priora
           </Link>
-          <div className="sidebar-namespace">
-            <Link to="/" className="sidebar-namespace-switch" title="Cambiar barrio">
+          <div className="sidebar-namespace desktop-only">
+            <Link to={FOR_PREFIX} className="sidebar-namespace-switch" title="Cambiar espacio">
               {name}
             </Link>
           </div>
@@ -71,14 +145,20 @@ export default function Layout() {
               <span className="icon">📋</span>
               Propuestas
             </NavLink>
-            <NavLink to={path('priorizar')}>
+            <NavLink to={path('priorizar')} className={navClass}>
               <span className="icon">↕</span>
               Priorizar
             </NavLink>
-            <NavLink to={user ? path('perfil') : '/login'}>
+            <NavLink to={user ? path('perfil') : '/login'} className={navClass}>
               <span className="icon">👤</span>
               Perfil
             </NavLink>
+            {canManageSpace && (
+              <NavLink to="/settings" className={navClass}>
+                <span className="icon">⚙</span>
+                Configuración
+              </NavLink>
+            )}
           </nav>
           <div className="sidebar-footer">
             {user ? (
@@ -99,9 +179,12 @@ export default function Layout() {
           </div>
         </aside>
         <main className="content">
+          <MembershipBanner />
           <Outlet />
         </main>
       </div>
+
+      <TutorialOverlay />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { openTutorial } from '../components/TutorialOverlay';
 import { useAuth } from '../context/AuthContext';
 
 const roleLabels = {
@@ -34,7 +35,7 @@ export default function Profile() {
       <div className="content-header">
         <div>
           <h1>Mi perfil</h1>
-          <p>Datos de tu cuenta y dirección en el barrio</p>
+          <p>Datos de tu cuenta y dirección en el espacio</p>
         </div>
       </div>
 
@@ -89,6 +90,13 @@ export default function Profile() {
           </button>
         </form>
         {message && <p className="success">{message}</p>}
+
+        <div className="hint-box">
+          <p>¿Querés repasar cómo funciona Priora?</p>
+          <button type="button" className="btn btn-secondary" onClick={openTutorial}>
+            Ver tutorial
+          </button>
+        </div>
       </div>
     </div>
   );

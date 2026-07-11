@@ -31,13 +31,14 @@ Solo usuarios con roles especiales (**Administrador** o **Proponente**) pueden c
 | Priorización | Orden relativo de propuestas por usuario autenticado |
 | Comentarios | Foro por propuesta, últimos 10 visibles en detalle |
 | Filtros | Propuestas activas por defecto; opción de ver rechazadas |
-| Roles | Administrador, Proponente, Usuario regular |
+| Roles | Administrador, Proponente, Usuario regular, Admin de espacio (por namespace) |
+| Membresía | Aprobación opcional por espacio (`require_member_approval`) |
 
 ### 2.2 Fuera de alcance (fase posterior)
 
 - Notificaciones por correo o push.
 - Moderación avanzada de comentarios (más allá de permisos básicos).
-- Múltiples barrios o comunidades en una misma instancia.
+- Múltiples barrios o comunidades en una misma instancia (parcialmente cubierto por namespaces; falta UX avanzada).
 - Aplicación móvil nativa.
 - Integración con sistemas municipales externos.
 - Historial completo de comentarios en la vista de detalle (solo últimos 10 en prototipo).
@@ -74,7 +75,7 @@ Usuario regular con permiso adicional para crear propuestas.
 
 > Un **Administrador** puede promover a un usuario regular a **Proponente**.
 
-### 3.3 Administrador
+### 3.3 Administrador (plataforma)
 
 Usuario con control total sobre el ciclo de vida de las propuestas y la comunidad.
 
@@ -84,18 +85,42 @@ Usuario con control total sobre el ciclo de vida de las propuestas y la comunida
 | Crear propuestas | Sí |
 | Cambiar estado de cualquier propuesta | Sí |
 | Asignar o cambiar tracker | Sí |
-| Promover usuarios a Proponente | Sí |
-| Revocar rol Proponente | Sí (prototipo: opcional) |
-| Eliminar comentarios inapropiados | Sí (prototipo: opcional) |
+| Promover usuarios a Proponente / Admin | Sí |
+| Crear espacios y asignar admin de espacio | Sí |
+| Activar aprobación de miembros por espacio | Sí |
 
-### 3.4 Matriz de permisos resumida
+### 3.4 Admin de espacio (`space_admin`)
+
+Rol **por espacio** (tabla `namespace_members`), no global.
+
+| Acción | Permitido |
+|--------|-----------|
+| Todo lo de proponente en ese espacio | Sí |
+| Aprobar / rechazar solicitudes de membresía | Sí |
+| Deshabilitar / rehabilitar usuarios del espacio | Sí |
+| Activar/desactivar aprobación requerida del espacio | Sí |
+| Cambiar roles globales o crear espacios | No |
+
+### 3.5 Aprobación de usuarios por espacio
+
+Cada espacio tiene el flag `require_member_approval` (default **apagado**):
+
+- **Apagado:** cualquiera con perfil completo puede priorizar y comentar; el ranking cuenta para todos.
+- **Encendido:** el usuario ve un banner para solicitar autorización; puede priorizar pero **no cuenta** hasta `active`; **no puede comentar** hasta ser aprobado. Los admins ven la cola de pendientes en Configuración.
+
+Estados de membresía: `pending` → `active` | `rejected` | `disabled`.
+
+### 3.6 Matriz de permisos resumida
 
 ```
-                    Ver  Priorizar  Comentar  Crear  Editar  Estado  Tracker  Roles
-Usuario regular      ✓      ✓         ✓        ✗      ✗       ✗       ✗        ✗
-Proponente           ✓      ✓         ✓        ✓      propia  ✗       ✗        ✗
-Administrador        ✓      ✓         ✓        ✓      todas   ✓       ✓        ✓
+                    Ver  Priorizar*  Comentar*  Crear  Editar  Estado  Tracker  Roles
+Usuario regular      ✓      ✓           ✓         ✗      ✗       ✗       ✗        ✗
+Proponente           ✓      ✓           ✓         ✓      propia  ✗       ✗        ✗
+Admin de espacio     ✓      ✓           ✓         ✓      propia  ✗       ✗      miembros
+Administrador        ✓      ✓           ✓         ✓      todas   ✓       ✓        ✓
 ```
+
+\*Con `require_member_approval`, priorizar/comentar con efecto requieren membresía `active`.
 
 ---
 
@@ -701,6 +726,24 @@ CREATE TABLE comments (
 8. Un Administrador puede cambiar el estado y asignar tracker.
 9. Usuarios sin rol especial no ven el botón de crear propuesta.
 10. El catálogo de categorías incluye las 6 categorías por defecto del seed.
+11. Por defecto un espacio **no** exige aprobación: cualquier usuario con perfil completo puede priorizar y comentar con efecto.
+12. Con `require_member_approval` activo, el usuario no autorizado puede guardar priorización pero **no cuenta** en el ranking y **no puede comentar**.
+13. El usuario puede solicitar autorización; queda en `pending` hasta que un admin (plataforma o de espacio) apruebe o rechace.
+14. Tras aprobación (`active`), priorización y comentarios tienen efecto; tras rechazo (`rejected`) siguen bloqueados.
+15. Un admin de espacio puede aprobar solicitudes y deshabilitar miembros regulares de su espacio.
+
+### 11.1 Pruebas BDD (API)
+
+Los escenarios de membresía viven en Gherkin (español) y se ejecutan con cucumber-rs:
+
+```bash
+cd priora-api && cargo test --test bdd
+```
+
+| Feature | Escenarios cubiertos |
+|---------|----------------------|
+| `tests/features/membership_approval.feature` | Participación libre sin aprobación; bloqueo de comentarios con aprobación; solicitud + priorización sin efecto + aprobación; rechazo; aprobación por admin de espacio |
+| `tests/features/admin_settings.feature` | `membership/me` para admin y regular; toggle de aprobación; listado de miembros (admin sí / regular no); admin de espacio puede administrar |
 
 ---
 
@@ -711,21 +754,20 @@ CREATE TABLE comments (
 | Algoritmo de ranking | Borda count vs Elo vs promedio de posiciones | Borda count |
 | UI de priorización | Drag & drop vs votación por pares | Drag & drop |
 | Comentarios anidados | Planos vs árbol | Planos |
-| Visibilidad de dirección | Solo admin vs privada total | Solo admin |
+| Visibilidad de dirección | Solo admin vs privada total | Solo admin (también visible a admin de espacio al aprobar) |
 | Usuarios anónimos | Solo lectura vs redirección a login | Solo lectura en listado/detalle |
-| Primer administrador | Seed en DB vs variable de entorno | Seed con email específico en migración |
+| Primer administrador | Seed en DB vs variable de entorno vs script | `scripts/set-role.sh` (ver `doc/despliegue.md` §8) |
+| Aprobación al activar el toggle | Resetear miembros existentes vs solo nuevos | Solo nuevos: quien ya está `active` sigue; quien no tiene membresía debe solicitar |
 
 ---
 
 ## 13. Próximos pasos de implementación
 
-1. Inicializar monorepo o dos repositorios: `priora-api` (Rust) y `priora-web` (React).
-2. Configurar PostgreSQL y migraciones iniciales.
-3. Implementar OAuth Google en backend y flujo de perfil.
-4. CRUD de propuestas con control de roles.
-5. Motor de ranking y endpoints de priorización.
-6. Comentarios y vista de detalle en frontend.
-7. Pulido UI, filtros y pruebas de aceptación según §11.
+1. ~~Inicializar monorepo~~ `priora-api` + `priora-web`.
+2. ~~Autenticación, propuestas, ranking, comentarios, namespaces~~.
+3. ~~Membresía por espacio y aprobación opcional~~.
+4. Ampliar cobertura BDD a auth, propuestas y ranking.
+5. Pulido UI y despliegue continuo.
 
 ---
 
@@ -734,14 +776,44 @@ CREATE TABLE comments (
 | Aspecto | Valor |
 |---------|-------|
 | Dominio | **https://priora.ceapps.top** |
-| Backend | Docker (`priora-api/Dockerfile`) en Coolify |
-| Frontend | Build estático Vite, sin contenedor (lighttpd en el host) |
-| Proxy | Traefik (Coolify) — mismo dominio para `/` y `/api` |
+| Frontend | `/for/{barrio}` — app Coolify `priora-web` (nginx) |
+| API | `/api` — app Coolify `priora-api` (Docker) |
+| CORS | No aplica (mismo origen) |
 | Base de datos | SQLite en volumen persistente (`/app/data`) |
 
 Guía detallada: [`doc/despliegue.md`](despliegue.md).
 
 ---
 
-*Versión del documento: 1.0 — Prototipo inicial*  
+## 15. Modelo de datos — membresía (SQLite)
+
+```sql
+-- Flag por espacio (default 0 = aprobación automática / libre)
+-- namespaces.require_member_approval INTEGER NOT NULL DEFAULT 0
+
+CREATE TABLE namespace_members (
+    namespace_id TEXT NOT NULL REFERENCES namespaces(id),
+    user_id TEXT NOT NULL REFERENCES users(id),
+    role TEXT NOT NULL DEFAULT 'regular',   -- regular | proponent | space_admin
+    status TEXT NOT NULL DEFAULT 'active',  -- pending | active | disabled | rejected
+    requested_at TEXT NOT NULL,
+    reviewed_at TEXT,
+    reviewed_by TEXT REFERENCES users(id),
+    PRIMARY KEY (namespace_id, user_id)
+);
+```
+
+API relevante (prefijo `/api`):
+
+| Método | Ruta | Quién |
+|--------|------|--------|
+| GET | `/{ns}/membership/me` | autenticado / anónimo |
+| POST | `/{ns}/membership/request` | usuario con perfil |
+| GET | `/{ns}/members?status=` | admin plataforma o space_admin |
+| PATCH | `/{ns}/members/{user_id}` | admin plataforma o space_admin |
+| PATCH | `/namespaces/{slug}` | admin plataforma o space_admin (`require_member_approval`) |
+
+---
+
+*Versión del documento: 1.1 — Membresía por espacio*  
 *Última actualización: julio 2026*

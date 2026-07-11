@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
-import { Outlet, useParams } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { api, saveLastNamespace } from '../api/client';
+import { api, getLastNamespace, saveLastNamespace } from '../api/client';
 import { NamespaceProvider } from '../context/NamespaceContext';
+import { FOR_PREFIX } from '../routes';
 
-export default function NamespaceLayout() {
-  const { namespace: slug } = useParams();
+/** Carga el último espacio usado y provee contexto para /settings. */
+export default function SettingsLayout() {
+  const slug = getLastNamespace();
 
   const { data: namespace, isLoading, error } = useQuery({
     queryKey: ['namespace', slug],
     queryFn: () => api.namespace(slug),
     retry: false,
+    enabled: !!slug,
   });
 
   useEffect(() => {
@@ -31,11 +34,13 @@ export default function NamespaceLayout() {
     return (
       <div className="auth-main">
         <div className="auth-card">
-          <h1>Espacio no encontrado</h1>
-          <p>No existe un espacio con la ruta <code>/{slug}</code>.</p>
-          <a href="/" className="btn btn-secondary" style={{ marginTop: '1rem' }}>
+          <h1>Elegí un espacio</h1>
+          <p>
+            Para abrir la configuración necesitás haber visitado un espacio antes.
+          </p>
+          <Link to={FOR_PREFIX} className="btn btn-secondary" style={{ marginTop: '1rem' }}>
             Ver espacios disponibles
-          </a>
+          </Link>
         </div>
       </div>
     );

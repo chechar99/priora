@@ -1,78 +1,76 @@
 # Despliegue en producción — Priora
 
-> Dominio de producción: **https://priora.ceapps.top**  
-> Infraestructura prevista: VPS con **Coolify** (Traefik como proxy).
+> Dominio: **https://priora.ceapps.top**  
+> Frontend: `https://priora.ceapps.top/for/{barrio}`  
+> API: `https://priora.ceapps.top/api` (mismo origen → sin CORS)  
+> Infraestructura: **Coolify** (dos aplicaciones en el mismo proyecto)
 
 ---
 
 ## 1. Arquitectura
 
-Priora se despliega en **un solo dominio** con dos componentes:
-
-| Componente | Tecnología | Contenedor |
-|------------|------------|------------|
-| **Backend** (`priora-api`) | Rust / Axum / SQLite | **Sí** — Docker en Coolify |
-| **Frontend** (`priora-web`) | React / Vite (build estático) | **No** — archivos servidos por Traefik |
-
 ```
-                    priora.ceapps.top
-                           │
-                    Traefik (Coolify)
-                           │
-         ┌─────────────────┼─────────────────┐
-         │                 │                 │
-    /api/*            /uploads/*             /*
-         │                 │                 │
-         ▼                 ▼                 ▼
-   priora-api         priora-api      /var/www/priora
-   (Docker :3000)     (Docker :3000)   (HTML/JS/CSS)
+https://priora.ceapps.top
+         │
+    Traefik (Coolify)
+         │
+    ┌────┴────────────────────────────────────┐
+    │                                         │
+ /api/*  /uploads/*                    /*  /for/*
+    │                                         │
+    ▼                                         ▼
+ priora-api                            priora-web
+ (Docker :3000)                         (nginx :80)
 ```
 
-**Por qué el frontend sin Docker:** el build de Vite genera archivos estáticos (~pocos MB). Servirlos directamente desde el host ahorra RAM y CPU frente a levantar un contenedor nginx adicional.
+| Ruta | Ejemplo | Servicio |
+|------|---------|----------|
+| Frontend — selector | `/for` | priora-web |
+| Frontend — barrio | `/for/barrio-test` | priora-web |
+| Frontend — auth | `/login`, `/auth/callback`, `/completar-perfil` | priora-web |
+| API global | `/api/auth/*`, `/api/namespaces`, `/api/categories` | priora-api |
+| API por barrio | `/api/barrio-test/proposals` | priora-api |
+| Archivos | `/uploads/*` | priora-api |
+
+El cliente (`priora-web/src/api/client.js`) usa rutas relativas (`/api/...`) con `VITE_API_URL` vacío: mismo origen, sin CORS.
 
 ---
 
 ## 2. Requisitos previos
 
-- VPS con Coolify operativo y Traefik en puertos 80/443.
-- Registro DNS **A** apuntando `priora.ceapps.top` → IP del VPS.
-- Proyecto en Google Cloud Console con OAuth 2.0 configurado.
-- Repositorio git accesible desde Coolify (GitHub, GitLab, etc.).
+- Coolify en `https://coolify.ceapps.top`
+- DNS **A**: `priora.ceapps.top` → IP del VPS
+- Puertos **80** y **443** abiertos
+- Puertos **80** y **443** abiertos
+- **Deploy desde Mac** (recomendado): `scripts/deploy.sh` — sin GitHub
 
 ---
 
-## 3. Backend — Docker en Coolify
+## 3. Proyecto Coolify
 
-### 3.1 Dockerfile
+Proyecto **Priora** con dos aplicaciones tipo **Docker Image** (ya creadas):
 
-El backend incluye un Dockerfile multi-stage en `priora-api/Dockerfile`:
+| App | UUID | Imagen | Puerto | Dominio |
+|-----|------|--------|--------|---------|
+| `priora-api` | `arwyqa5vgjb1bp1yxz6pf3ma` | `127.0.0.1:5000/priora-api:latest` | 3000 | `/api`, `/uploads` |
+| `priora-web` | `svwgcroypeuxqb71dq9s9ygw` | `127.0.0.1:5000/priora-web:latest` | 80 | `priora.ceapps.top` |
 
-- **Build:** imagen `rust:1-bookworm`, compila el binario en release.
-- **Runtime:** imagen `debian:bookworm-slim` con `libsqlite3` y usuario no-root (`appuser`).
-- **Puerto:** `3000`.
-- **Health check:** `GET /api/health`.
+Volúmenes en API: `/app/data`, `/app/uploads`.
 
-### 3.2 Crear la aplicación en Coolify
+> **Strip Prefix:** en `priora-api`, Coolify puede agregar middleware que quita `/api` antes de llegar al backend. Hay que **desactivarlo** — el backend espera rutas con `/api/...`.
 
-1. **New Resource → Application**.
-2. Conectar el repositorio y seleccionar la rama de producción.
-3. **Base Directory:** `priora-api`.
-4. **Build Pack:** Dockerfile (detecta `priora-api/Dockerfile` automáticamente).
-5. **Puerto interno:** `3000`.
-6. **Health check path:** `/api/health`.
+---
 
-### 3.3 Volúmenes persistentes
+## 4. Backend (`priora-api`)
 
-Montar en el contenedor (Coolify → Storage):
+### Volúmenes
 
-| Ruta en contenedor | Contenido |
-|--------------------|-----------|
-| `/app/data` | Base SQLite (`priora.db`) |
+| Ruta en contenedor | Uso |
+|--------------------|-----|
+| `/app/data` | SQLite (`priora.db`) |
 | `/app/uploads` | Logos de propuestas |
 
-### 3.4 Variables de entorno
-
-Copiar desde `priora-api/.env.production.example` y ajustar en Coolify:
+### Variables de entorno
 
 ```env
 DATABASE_URL=sqlite:/app/data/priora.db?mode=rwc
@@ -86,73 +84,72 @@ DEV_IMPERSONATION=false
 SEED_DEMO_DATA=false
 
 GOOGLE_CLIENT_ID=<client-id>
-GOOGLE_CLIENT_SECRET=<client-secret>
+GOOGLE_CLIENT_SECRET=<secret>
 GOOGLE_REDIRECT_URI=https://priora.ceapps.top/api/auth/google/callback
 ```
 
-> **Importante:** en producción `DEV_AUTH`, `DEV_IMPERSONATION` y `SEED_DEMO_DATA` deben estar en `false`.
+### Dominio en Coolify
 
-### 3.5 Dominio en Coolify (solo API)
+En **Domains**, agregar con prefijo de ruta (si la UI lo permite):
 
-En la configuración de dominios de la aplicación, agregar rutas internas. Traefik enrutará `/api` y `/uploads` hacia el contenedor (ver §5). Por ahora publicar el servicio en la red interna de Coolify; el enrutamiento público se configura en el paso 5.
+- `https://priora.ceapps.top/api`
+- `https://priora.ceapps.top/uploads`
 
-Alternativa simple: asignar dominio `priora.ceapps.top` en Coolify con path `/api` si la versión lo soporta directamente desde la UI.
+Si Coolify no permite path en dominio, dejar la app **sin dominio público** y enrutar con Traefik (§6).
 
----
+### Health check
 
-## 4. Frontend — build estático (sin Docker)
-
-### 4.1 Build local o en CI
-
-Desde la raíz del repo:
-
-```bash
-cd priora-web
-cp .env.production.example .env.production
-npm ci
-npm run build
-```
-
-Con `VITE_API_URL` vacío, el frontend usa rutas relativas (`/api/...`) contra el mismo dominio.
-
-### 4.2 Publicar en el servidor
-
-Copiar el contenido de `priora-web/dist/` al VPS:
-
-```bash
-rsync -avz --delete priora-web/dist/ root@<IP-VPS>:/var/www/priora/
-```
-
-Crear el directorio si no existe:
-
-```bash
-ssh root@<IP-VPS> 'mkdir -p /var/www/priora && chown -R www-data:www-data /var/www/priora'
-```
-
-### 4.3 Actualizaciones del frontend
-
-Cada vez que cambie el frontend:
-
-```bash
-cd priora-web && npm run build
-rsync -avz --delete dist/ root@<IP-VPS>:/var/www/priora/
-```
-
-No hace falta reiniciar Docker ni el backend salvo que cambien variables `VITE_*` (esas se embeben en el build).
+- Path: `/api/health`
+- Puerto: `3000`
 
 ---
 
-## 5. Traefik — enrutamiento en un solo dominio
+## 5. Frontend (`priora-web`)
 
-Agregar configuración dinámica en el servidor (`/data/coolify/proxy/dynamic/priora.yaml`). Ajustar el nombre del contenedor si Coolify lo genera distinto (`docker ps` para verificar).
+### Build
+
+El Dockerfile hace `npm ci && npm run build` y sirve con **nginx** (imagen final ~25 MB).
+
+### Variables de build
+
+| Variable | Valor |
+|----------|-------|
+| `VITE_API_URL` | *(vacío)* — peticiones a `/api` en el mismo dominio |
+
+En Coolify → **Build Variables** dejar `VITE_API_URL` vacío o no definirla.
+
+### Dominio en Coolify
+
+- `https://priora.ceapps.top`
+
+Traefik envía el resto del tráfico (incluido `/for/*`, `/login`, assets) al contenedor nginx.
+
+### Rutas del frontend
+
+Definidas en `priora-web/src/routes.js`:
+
+| Ruta | Pantalla |
+|------|----------|
+| `/` | Redirige a `/for` |
+| `/for` | Selector de barrio |
+| `/for/:namespace` | Home del barrio |
+| `/for/:namespace/propuestas/:id` | Detalle |
+| `/login` | Login |
+| `/auth/callback` | Callback OAuth (redirect del backend) |
+| `/completar-perfil` | Completar dirección |
+
+---
+
+## 6. Traefik — mismo dominio, dos contenedores
+
+Si ambas apps compiten por el mismo FQDN, configurar prioridades en  
+`/data/coolify/proxy/dynamic/priora.yaml` (ajustar nombre del contenedor API):
 
 ```yaml
 http:
   routers:
     priora-api:
-      entryPoints:
-        - http
-        - https
+      entryPoints: [http, https]
       rule: Host(`priora.ceapps.top`) && (PathPrefix(`/api`) || PathPrefix(`/uploads`))
       service: priora-api
       tls:
@@ -160,11 +157,9 @@ http:
       priority: 100
 
     priora-web:
-      entryPoints:
-        - http
-        - https
+      entryPoints: [http, https]
       rule: Host(`priora.ceapps.top`)
-      service: priora-static
+      service: priora-web
       tls:
         certResolver: letsencrypt
       priority: 1
@@ -173,103 +168,144 @@ http:
     priora-api:
       loadBalancer:
         servers:
-          - url: http://<nombre-contenedor-priora-api>:3000
+          - url: http://<contenedor-api>:3000
 
-    priora-static:
+    priora-web:
       loadBalancer:
         servers:
-          - url: http://host.docker.internal:8081
+          - url: http://<contenedor-web>:80
 ```
 
-Para servir archivos estáticos desde el host, levantar **lighttpd** en el VPS (sin Docker):
+Obtener nombres de contenedor: `docker ps | grep priora`.
 
-```bash
-# Instalar una sola vez
-apt install -y lighttpd
-
-# Configuración mínima en /etc/lighttpd/conf-enabled/priora.conf
-cat > /etc/lighttpd/conf-enabled/priora.conf << 'EOF'
-server.document-root = "/var/www/priora"
-server.port = 8081
-server.bind = "127.0.0.1"
-index-file.names = ( "index.html" )
-url.rewrite-if-not-file = ( "^/(.*)$" => "/index.html" )
-EOF
-
-systemctl enable --now lighttpd
-```
-
-Traefik alcanza `host.docker.internal:8081` (ya configurado en Coolify proxy) y lighttpd sirve los estáticos en localhost.
-
-Reiniciar el proxy tras cambios:
-
-```bash
-docker restart coolify-proxy
-```
-
-### Certificado SSL
-
-Con `certResolver: letsencrypt` y el DNS apuntando al VPS, Traefik obtiene el certificado automáticamente. Los puertos 80 y 443 deben ser accesibles desde internet durante la emisión.
+Reiniciar proxy: `docker restart coolify-proxy`.
 
 ---
 
-## 6. Google OAuth
-
-En [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials:
+## 7. Google OAuth
 
 | Campo | Valor |
 |-------|-------|
 | Authorized JavaScript origins | `https://priora.ceapps.top` |
 | Authorized redirect URIs | `https://priora.ceapps.top/api/auth/google/callback` |
 
-Las mismas URLs deben coincidir con `FRONTEND_URL` y `GOOGLE_REDIRECT_URI` en las variables del backend.
+El backend redirige tras OAuth a `https://priora.ceapps.top/auth/callback?token=...` (ruta del frontend, no de la API).
 
 ---
 
-## 7. Checklist de despliegue
+## 8. Asignar roles (`scripts/set-role.sh`)
 
-```
-[ ] DNS A: priora.ceapps.top → IP del VPS
-[ ] App Coolify creada (base dir: priora-api, Dockerfile)
-[ ] Volúmenes /app/data y /app/uploads montados
-[ ] Variables de entorno de producción configuradas
-[ ] DEV_AUTH=false, SEED_DEMO_DATA=false
-[ ] Google OAuth con URIs de producción
-[ ] Frontend buildeado y rsync a /var/www/priora
-[ ] lighttpd en 127.0.0.1:8081 sirviendo estáticos
-[ ] Traefik dynamic config priora.yaml aplicada
-[ ] HTTPS responde en https://priora.ceapps.top
-[ ] GET https://priora.ceapps.top/api/health → ok
-[ ] Login con Google funciona end-to-end
-```
+Promueve o degrada usuarios por email (`admin` | `proponent` | `regular`). El rol se lee de la DB en cada request; no hace falta regenerar el JWT.
 
----
+**Requisito:** el usuario debe haber iniciado sesión con Google al menos una vez (debe existir la fila en `users`).
 
-## 8. Desarrollo vs producción
-
-| Aspecto | Desarrollo | Producción |
-|---------|------------|------------|
-| Frontend | Vite dev server `:5173` | Build estático + lighttpd |
-| API | `cargo run` `:3000` | Docker Coolify `:3000` |
-| Dominio | `localhost` | `priora.ceapps.top` |
-| Auth dev | `DEV_AUTH=true` | `DEV_AUTH=false` |
-| Datos demo | `SEED_DEMO_DATA=true` | `SEED_DEMO_DATA=false` |
-| SQLite | `priora-api/priora.db` | `/app/data/priora.db` (volumen) |
-
----
-
-## 9. Build local del Docker (verificación)
+### Local
 
 ```bash
-cd priora-api
-docker build -t priora-api:local .
-docker run --rm -p 3000:3000 \
-  -e JWT_SECRET=test \
-  -e FRONTEND_URL=http://localhost:5173 \
-  -e DEV_AUTH=true \
-  -v priora-data:/app/data \
-  priora-api:local
-curl http://localhost:3000/api/health
+chmod +x scripts/set-role.sh
+
+./scripts/set-role.sh list
+./scripts/set-role.sh admin cesarrian@gmail.com
+./scripts/set-role.sh proponent vecino@ejemplo.com
+./scripts/set-role.sh regular vecino@ejemplo.com
+```
+
+Usa la DB en `priora-api/priora.db` (o `PRIORA_DB` si la definís).
+
+### Producción
+
+Requiere `deploy.env` (mismo que el deploy) y acceso SSH al VPS.
+
+```bash
+./scripts/set-role.sh --prod list
+./scripts/set-role.sh --prod admin cesarrian@gmail.com
+./scripts/set-role.sh --prod proponent vecino@ejemplo.com
+./scripts/set-role.sh --prod regular vecino@ejemplo.com
+```
+
+Tras cambiar el rol, recargar la app (o volver a entrar) para que el frontend tome el rol desde `/auth/me`.
+
+### Backup de la base de datos
+
+Descarga una copia consistente de la SQLite de producción (backup online vía API de SQLite, sin detener la API):
+
+```bash
+chmod +x scripts/backup-db.sh
+
+./scripts/backup-db.sh                    # → backups/priora-YYYYMMDD-HHMMSS.db
+./scripts/backup-db.sh ~/Desktop/copia.db
+```
+
+Requiere el mismo `deploy.env` y SSH al VPS. Los archivos en `backups/` están en `.gitignore`.
+
+---
+
+## 9. Deploy local desde Mac (`scripts/deploy.sh`)
+
+Sin GitHub. Compilás en tu Mac, subís imágenes al registry local del VPS y Coolify redeploya.
+
+### Setup (una vez)
+
+```bash
+cp deploy.env.example deploy.env
+# Completar COOLIFY_TOKEN en deploy.env
+./scripts/deploy.sh bootstrap
+```
+
+Agregar en Coolify → **priora-api** → Environment: `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (ver `priora-api/.env.production.example`).
+
+### Cada release
+
+```bash
+./scripts/deploy.sh          # api + web
+./scripts/deploy.sh api      # solo backend Rust
+./scripts/deploy.sh web      # solo frontend (Vite → nginx)
+```
+
+### Qué hace el script
+
+**API:** `docker build` local (Rust compilado en Docker) → imagen al registry del VPS.
+
+**Web:** `npm run build` local → solo empaqueta `dist/` en nginx (~360 KB).
+
+1. `docker save` → `scp` → `docker load` en el VPS
+2. `docker push` al registry `127.0.0.1:5000`
+3. `POST /api/v1/deploy` a Coolify (o redeploy desde UI / MCP)
+
+### Traefik en Coolify
+
+- **priora-api:** `/api` y `/uploads`, prioridad 100, **sin** Strip Prefix
+- **priora-web:** excluir `/api` y `/uploads`, prioridad 1
+
+Si `/api/health` devuelve HTML, revisá las labels Traefik.
+
+---
+
+## 10. Verificación
+
+```bash
+curl -s https://priora.ceapps.top/api/health          # ok
+curl -sI https://priora.ceapps.top/for/barrio-test    # 200 HTML
+curl -sI https://priora.ceapps.top/                   # 301/302 → /for
+```
+
+En el navegador:
+
+1. `https://priora.ceapps.top/for` — selector de barrios
+2. `https://priora.ceapps.top/for/barrio-test` — listado
+3. Login con Google → callback en `/auth/callback` → vuelta al barrio
+
+---
+
+## 11. Checklist
+
+```
+[ ] deploy.env con COOLIFY_TOKEN
+[ ] ./scripts/deploy.sh bootstrap
+[ ] Variables JWT_SECRET y Google OAuth en priora-api (Coolify UI)
+[ ] Strip Prefix desactivado en priora-api
+[ ] ./scripts/deploy.sh
+[ ] Primer admin: login con Google + ./scripts/set-role.sh --prod admin <email>
 ```
 
 ---

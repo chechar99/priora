@@ -347,7 +347,8 @@ pub async fn seed_demo_data(pool: &SqlitePool) -> AppResult<()> {
     }
 
     sqlx::query(
-        "INSERT INTO namespaces (id, slug, name) VALUES ('ns-barrio-test', 'barrio-test', 'Barrio Test')
+        "INSERT INTO namespaces (id, slug, name, require_member_approval)
+         VALUES ('ns-barrio-test', 'barrio-test', 'Barrio Test', 0)
          ON CONFLICT(slug) DO UPDATE SET name = excluded.name",
     )
     .execute(pool)

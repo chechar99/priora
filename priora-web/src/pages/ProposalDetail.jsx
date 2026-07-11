@@ -30,6 +30,12 @@ export default function ProposalDetail() {
     enabled: !!id,
   });
 
+  const { data: membership } = useQuery({
+    queryKey: ['membership', slug],
+    queryFn: () => api.membershipMe(slug),
+    enabled: !!user,
+  });
+
   const maxScore = useMemo(
     () => Math.max(...activeProposals.map((p) => p.score || 0), 1),
     [activeProposals],
@@ -60,9 +66,12 @@ export default function ProposalDetail() {
 
   const canComment =
     user?.profile_complete &&
-    proposal.status !== 'rechazada';
+    proposal.status !== 'rechazada' &&
+    membership?.can_comment;
   const isAdmin = user?.role === 'admin';
   const commentCount = commentsPage?.total ?? commentsPage?.comments?.length ?? 0;
+  const needsApproval =
+    membership?.require_member_approval && user?.profile_complete && !membership?.can_comment;
 
   return (
     <div>
@@ -122,6 +131,12 @@ export default function ProposalDetail() {
                   Publicar
                 </button>
               </form>
+            )}
+
+            {needsApproval && proposal.status !== 'rechazada' && (
+              <p className="subtitle">
+                Necesitás autorización de un admin del espacio para comentar.
+              </p>
             )}
 
             {!user && (
@@ -192,7 +207,7 @@ export default function ProposalDetail() {
                   <div className="bar-fill" style={{ width: `${scorePct}%` }} />
                 </div>
                 {isTopScore && (
-                  <p className="score-note">Mayor puntuación del barrio</p>
+                  <p className="score-note">Mayor puntuación del espacio</p>
                 )}
               </div>
             </div>

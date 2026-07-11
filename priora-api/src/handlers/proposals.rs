@@ -6,8 +6,9 @@ use chrono::Utc;
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::auth::{can_create_proposal, ensure_profile, get_user_by_id, is_admin};
+use crate::auth::{ensure_profile, get_user_by_id, is_admin};
 use crate::db::{fetch_category, fetch_namespace_by_slug, fetch_user_public, sort_proposals_by_score};
+use crate::membership::{can_create_in_space, get_membership};
 use crate::error::{AppError, AppResult};
 use crate::handlers::{AppState, AuthSession};
 use crate::models::{
@@ -199,7 +200,8 @@ pub async fn create(
 ) -> AppResult<Json<ProposalDetail>> {
     let ns = resolve_namespace(&state.pool, &ns_path.namespace).await?;
     let user = &session.user;
-    if !can_create_proposal(user) {
+    let membership = get_membership(&state.pool, &ns.id, &user.id).await?;
+    if !can_create_in_space(user, membership.as_ref()) {
         return Err(AppError::Forbidden);
     }
     ensure_profile(user)?;

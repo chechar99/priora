@@ -45,8 +45,35 @@ export const api = {
     request('/api/auth/stop-impersonate', { method: 'POST' }),
   updateProfile: (data) =>
     request('/api/users/me', { method: 'PATCH', body: JSON.stringify(data) }),
+  users: () => request('/api/users'),
+  updateUserRole: (id, role) =>
+    request(`/api/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
   namespaces: () => request('/api/namespaces'),
   namespace: (slug) => request(`/api/namespaces/${slug}`),
+  createNamespace: (data) =>
+    request('/api/namespaces', { method: 'POST', body: JSON.stringify(data) }),
+  updateNamespace: (slug, data) =>
+    request(`/api/namespaces/${slug}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  membershipMe: (namespace) => request(`${nsPrefix(namespace)}/membership/me`),
+  requestMembership: (namespace) =>
+    request(`${nsPrefix(namespace)}/membership/request`, { method: 'POST' }),
+  members: (namespace, status) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    const q = params.toString();
+    return request(`${nsPrefix(namespace)}/members${q ? `?${q}` : ''}`);
+  },
+  updateMember: (namespace, userId, data) =>
+    request(`${nsPrefix(namespace)}/members/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
   proposals: (namespace, filter = 'active', category) => {
     const params = new URLSearchParams({ filter });
     if (category) params.set('category', category);

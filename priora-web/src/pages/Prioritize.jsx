@@ -3,7 +3,8 @@ import {
   DndContext,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -22,21 +23,44 @@ import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../context/NamespaceContext';
 
-function SortableItem({ item, position }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+function SortableItem({ item, position, isFirst, isLast, onMove }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.85 : undefined,
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="sortable-item" {...attributes} {...listeners}>
-      <span className="drag-handle">⠿</span>
+    <div ref={setNodeRef} style={style} className="sortable-item">
+      <span className="drag-handle" {...attributes} {...listeners} aria-label="Arrastrar para reordenar">
+        ⠿
+      </span>
       <span className="pos">{position}</span>
       <strong>{item.title}</strong>
       <StatusBadge status={item.status} />
+      <div className="priority-arrows">
+        <button
+          type="button"
+          className="priority-arrow"
+          aria-label="Subir prioridad"
+          disabled={isFirst}
+          onClick={() => onMove('up')}
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          className="priority-arrow"
+          aria-label="Bajar prioridad"
+          disabled={isLast}
+          onClick={() => onMove('down')}
+        >
+          ▼
+        </button>
+      </div>
     </div>
   );
 }
@@ -83,9 +107,25 @@ export default function Prioritize() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+
+  function moveItem(id, direction) {
+    setItems((prev) => {
+      const index = prev.findIndex((i) => i.id === id);
+      if (index < 0) return prev;
+      const target = direction === 'up' ? index - 1 : index + 1;
+      if (target < 0 || target >= prev.length) return prev;
+      return arrayMove(prev, index, target);
+    });
+    setSaved(false);
+  }
 
   if (!user) {
     navigate('/login', { state: { returnTo: path('priorizar') } });
@@ -102,13 +142,18 @@ export default function Prioritize() {
       <div className="content-header">
         <div>
           <h1>Priorizar propuestas</h1>
-          <p>Arrastrá para ordenar de mayor a menor prioridad</p>
+          <p>Ordená de mayor a menor prioridad</p>
         </div>
       </div>
 
       <div className="prioritize-panel">
         <div className="hint">
           Tu orden personal contribuye al ranking global. Los cambios se reflejan al guardar.
+        </div>
+
+        <div className="banner prioritize-mobile-hint" role="note">
+          En el celular, mantené presionado el ícono ⠿ para arrastrar. Si solo deslizás, la
+          pantalla hace scroll. También podés usar las flechas ▲ ▼.
         </div>
 
         {isLoading && <p>Cargando…</p>}
@@ -129,7 +174,14 @@ export default function Prioritize() {
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             <div className="sortable-list">
               {items.map((item, index) => (
-                <SortableItem key={item.id} item={item} position={index + 1} />
+                <SortableItem
+                  key={item.id}
+                  item={item}
+                  position={index + 1}
+                  isFirst={index === 0}
+                  isLast={index === items.length - 1}
+                  onMove={(direction) => moveItem(item.id, direction)}
+                />
               ))}
             </div>
           </SortableContext>

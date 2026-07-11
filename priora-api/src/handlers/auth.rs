@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::{
@@ -24,11 +25,6 @@ use crate::models::{AuthResponse, DevLoginRequest, MeResponse};
 pub struct CallbackQuery {
     code: Option<String>,
     error: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct ImpersonateQuery {
-    priora_as: String,
 }
 
 fn google_client(config: &crate::config::Config) -> AppResult<BasicClient> {
@@ -150,9 +146,16 @@ pub async fn dev_login(
 pub async fn impersonate(
     State(state): State<Arc<AppState>>,
     auth: OptionalAuthSession,
-    Query(query): Query<ImpersonateQuery>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> AppResult<Json<AuthResponse>> {
-    let target = resolve_user_ref(&state.pool, query.priora_as.trim()).await?;
+    let key = &state.config.impersonate_query_key;
+    let reference = params
+        .get(key)
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| AppError::BadRequest(format!("missing query param `{key}`")))?;
+
+    let target = resolve_user_ref(&state.pool, reference).await?;
 
     let impersonator_id = match (&auth.session, state.config.dev_impersonation) {
         (Some(session), _) if is_admin(&session.user) => Some(session.user.id.clone()),

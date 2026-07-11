@@ -11,6 +11,7 @@ use crate::db::{fetch_namespace_by_slug, fetch_user_public};
 use crate::error::{AppError, AppResult};
 use crate::handlers::proposals::{fetch_proposal_in_namespace, ProposalPath};
 use crate::handlers::{AppState, AuthSession};
+use crate::membership::{can_comment, get_membership};
 use crate::models::{
     Comment, CommentWithAuthor, CommentsPage, CreateCommentRequest,
 };
@@ -72,6 +73,10 @@ pub async fn create(
     ensure_profile(&session.user)?;
     let ns = fetch_namespace_by_slug(&state.pool, &path.namespace).await?;
     let p = fetch_proposal_in_namespace(&state.pool, &ns.id, &path.id).await?;
+    let membership = get_membership(&state.pool, &ns.id, &session.user.id).await?;
+    if !can_comment(&ns, &session.user, membership.as_ref()) {
+        return Err(AppError::Forbidden);
+    }
 
     if p.status == "rechazada" {
         return Err(AppError::BadRequest(

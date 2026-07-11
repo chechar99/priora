@@ -1,20 +1,12 @@
-mod auth;
-mod config;
-mod db;
-mod error;
-mod handlers;
-mod models;
-mod ranking;
-
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 use sqlx::sqlite::SqlitePoolOptions;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::Config;
-use crate::db::seed_demo_data;
-use crate::handlers::{build_router, AppState};
+use priora_api::config::Config;
+use priora_api::db::seed_demo_data;
+use priora_api::handlers::{build_router, AppState};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

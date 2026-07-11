@@ -148,10 +148,6 @@ pub async fn dev_login_user(
     get_user_by_id(pool, &id).await
 }
 
-pub fn can_create_proposal(user: &User) -> bool {
-    user.role == "admin" || user.role == "proponent"
-}
-
 pub fn is_admin(user: &User) -> bool {
     user.role == "admin"
 }

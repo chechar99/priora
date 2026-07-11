@@ -1,6 +1,7 @@
 mod auth;
 mod categories;
 mod comments;
+mod membership;
 mod namespaces;
 mod proposals;
 mod rankings;
@@ -34,12 +35,6 @@ pub struct AppState {
 pub struct AuthSession {
     pub user: User,
     pub impersonator_id: Option<String>,
-}
-
-impl AuthSession {
-    pub fn impersonator_id(&self) -> Option<&str> {
-        self.impersonator_id.as_deref()
-    }
 }
 
 impl FromRequestParts<Arc<AppState>> for AuthSession {
@@ -129,7 +124,11 @@ pub fn build_router(state: Arc<AppState>) -> Router {
             get(comments::list).post(comments::create),
         )
         .route("/comments/{id}", delete(comments::delete_comment))
-        .route("/rankings/me", get(rankings::get_my).put(rankings::save_my));
+        .route("/rankings/me", get(rankings::get_my).put(rankings::save_my))
+        .route("/membership/me", get(membership::me))
+        .route("/membership/request", post(membership::request))
+        .route("/members", get(membership::list))
+        .route("/members/{user_id}", patch(membership::update));
 
     let api = Router::new()
         .route("/auth/google", get(auth::google_login))
@@ -140,9 +139,14 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/auth/me", get(auth::me))
         .route("/auth/logout", post(auth::logout))
         .route("/users/me", get(users::get_me).patch(users::update_me))
+        .route("/users", get(users::list))
+        .route("/users/{id}/role", patch(users::update_role))
         .route("/categories", get(categories::list))
-        .route("/namespaces", get(namespaces::list))
-        .route("/namespaces/{slug}", get(namespaces::get_one))
+        .route("/namespaces", get(namespaces::list).post(namespaces::create))
+        .route(
+            "/namespaces/{slug}",
+            get(namespaces::get_one).patch(namespaces::update),
+        )
         .nest("/{namespace}", scoped)
         .with_state(state.clone());
 

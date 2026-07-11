@@ -26,12 +26,14 @@ impl Config {
             port: env::var("PORT")
                 .ok()
                 .and_then(|p| p.parse().ok())
-                .unwrap_or(3000),
+                .unwrap_or(3100),
             frontend_url: env::var("FRONTEND_URL")
-                .unwrap_or_else(|_| "http://localhost:5173".into()),
+                .unwrap_or_else(|_| "http://priora.localhost:8080".into()),
+            // Default false: production-safe if env vars are missing.
+            // Local .env.example sets DEV_AUTH=true / SEED_DEMO_DATA=true.
             dev_auth: env::var("DEV_AUTH")
                 .map(|v| v == "true" || v == "1")
-                .unwrap_or(true),
+                .unwrap_or(false),
             dev_impersonation: env::var("DEV_IMPERSONATION")
                 .map(|v| v == "true" || v == "1")
                 .unwrap_or(false),
@@ -39,7 +41,7 @@ impl Config {
                 .unwrap_or_else(|_| "priora_as".into()),
             seed_demo_data: env::var("SEED_DEMO_DATA")
                 .map(|v| v == "true" || v == "1")
-                .unwrap_or(true),
+                .unwrap_or(false),
             google_client_id: env::var("GOOGLE_CLIENT_ID").ok().filter(|s| !s.is_empty()),
             google_client_secret: env::var("GOOGLE_CLIENT_SECRET")
                 .ok()

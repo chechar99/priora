@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { api, getLastNamespace } from '../api/client';
+import { api } from '../api/client';
+import { defaultNamespacePath } from '../routes';
 import { useAuth } from '../context/AuthContext';
 
 export default function CompleteProfile() {
@@ -16,7 +17,7 @@ export default function CompleteProfile() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const returnTo = location.state?.returnTo || `/${getLastNamespace()}`;
+  const returnTo = location.state?.returnTo || defaultNamespacePath();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +40,7 @@ export default function CompleteProfile() {
         <div className="content-header">
           <div>
             <h1>Completa tu perfil</h1>
-            <p>Indica tu dirección para identificarte dentro del barrio</p>
+            <p>Indica tu dirección para identificarte dentro del espacio</p>
           </div>
         </div>
 

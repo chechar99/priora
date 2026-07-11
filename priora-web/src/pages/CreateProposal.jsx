@@ -17,6 +17,12 @@ export default function CreateProposal() {
     queryFn: () => api.categories(),
   });
 
+  const { data: membership, isLoading: loadingMembership } = useQuery({
+    queryKey: ['membership', slug],
+    queryFn: () => api.membershipMe(slug),
+    enabled: !!user,
+  });
+
   const mutation = useMutation({
     mutationFn: () =>
       api.createProposal(slug, {
@@ -29,7 +35,11 @@ export default function CreateProposal() {
     onError: (e) => setError(e.message),
   });
 
-  if (!user || (user.role !== 'admin' && user.role !== 'proponent')) {
+  if (loadingMembership) {
+    return <p>Cargando…</p>;
+  }
+
+  if (!user || !membership?.can_create_proposal) {
     return (
       <div className="panel page-narrow">
         <p>No tienes permiso para crear propuestas.</p>
@@ -43,7 +53,7 @@ export default function CreateProposal() {
       <div className="content-header">
         <div>
           <h1>Nueva propuesta</h1>
-          <p>Compartí una idea de mejora para el barrio</p>
+          <p>Compartí una idea de mejora para el espacio</p>
         </div>
       </div>
 

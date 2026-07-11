@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { getLastNamespace } from '../api/client';
+import { defaultNamespacePath } from '../routes';
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthCallback() {
@@ -16,7 +16,7 @@ export default function AuthCallback() {
       setError('Token no recibido');
       return;
     }
-    const returnTo = location.state?.returnTo || `/${getLastNamespace()}`;
+    const returnTo = location.state?.returnTo || defaultNamespacePath();
     loginWithToken(token)
       .then((u) =>
         navigate(u?.profile_complete ? returnTo : '/completar-perfil', {

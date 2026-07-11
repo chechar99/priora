@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { namespacePath } from '../routes';
 
 const NamespaceContext = createContext(null);
 
@@ -8,10 +9,7 @@ export function NamespaceProvider({ namespace, children }) {
     () => ({
       slug: namespace.slug,
       name: namespace.name,
-      path: (subpath = '') => {
-        const suffix = subpath.startsWith('/') ? subpath : subpath ? `/${subpath}` : '';
-        return `/${namespace.slug}${suffix}`;
-      },
+      path: (subpath = '') => namespacePath(namespace.slug, subpath),
     }),
     [namespace],
   );

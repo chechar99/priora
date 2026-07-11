@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { FOR_PREFIX, namespacePath } from '../routes';
 
 export default function NamespacePicker() {
   const { data: namespaces = [], isLoading, error } = useQuery({
@@ -15,25 +16,25 @@ export default function NamespacePicker() {
           <span className="auth-logo-icon">P</span>
           Priora
         </div>
-        <h1>Elegí tu barrio</h1>
+        <h1>Elegí tu espacio</h1>
         <p className="subtitle">
-          Cada barrio tiene sus propias propuestas y ranking de priorización.
+          Cada espacio tiene sus propias propuestas y ranking de priorización.
         </p>
 
-        {isLoading && <p>Cargando barrios…</p>}
+        {isLoading && <p>Cargando espacios…</p>}
         {error && <p className="error">{error.message}</p>}
 
         <div className="namespace-list">
           {namespaces.map((ns) => (
-            <Link key={ns.id} to={`/${ns.slug}`} className="namespace-card">
+            <Link key={ns.id} to={namespacePath(ns.slug)} className="namespace-card">
               <strong>{ns.name}</strong>
-              <span>/{ns.slug}</span>
+              <span>{FOR_PREFIX}/{ns.slug}</span>
             </Link>
           ))}
         </div>
 
         <p className="hint-box" style={{ marginTop: '1.5rem' }}>
-          Accedé directamente con <code>/barrio-test</code>.
+          Accedé directamente con <code>{FOR_PREFIX}/barrio-test</code>.
         </p>
       </div>
     </div>

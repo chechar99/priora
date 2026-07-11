@@ -1,11 +1,14 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import NamespaceLayout from './components/NamespaceLayout';
+import SettingsLayout from './components/SettingsLayout';
 import ImpersonationHandler from './components/ImpersonationHandler';
+import { api } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useOptionalNamespace } from './context/NamespaceContext';
-import { getLastNamespace } from './api/client';
+import { defaultNamespacePath, FOR_PREFIX } from './routes';
+import AdminSettings from './pages/AdminSettings';
 import AuthCallback from './pages/AuthCallback';
 import CompleteProfile from './pages/CompleteProfile';
 import CreateProposal from './pages/CreateProposal';
@@ -19,13 +22,27 @@ import './index.css';
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children, requireProfile = false }) {
+function ProtectedRoute({ children, requireProfile = false, requireSpaceAdmin = false }) {
   const { user, loading } = useAuth();
   const ns = useOptionalNamespace();
-  if (loading) return <p>Cargando…</p>;
+  const slug = ns?.slug;
+
+  const { data: membership, isLoading: membershipLoading } = useQuery({
+    queryKey: ['membership', slug],
+    queryFn: () => api.membershipMe(slug),
+    enabled: !!user && requireSpaceAdmin && !!slug,
+  });
+
+  if (loading || (requireSpaceAdmin && user && membershipLoading)) return <p>Cargando…</p>;
   if (!user) return <Navigate to="/login" replace />;
   if (requireProfile && !user.profile_complete) {
     return <Navigate to="/completar-perfil" replace state={{ returnTo: ns?.path() }} />;
+  }
+  if (requireSpaceAdmin) {
+    const allowed = user.role === 'admin' || membership?.can_manage_space;
+    if (!allowed) {
+      return <Navigate to={ns?.path() || '/'} replace />;
+    }
   }
   return children;
 }
@@ -37,7 +54,8 @@ export default function App() {
         <BrowserRouter>
           <ImpersonationHandler />
           <Routes>
-            <Route path="/" element={<NamespacePicker />} />
+            <Route path="/" element={<Navigate to={FOR_PREFIX} replace />} />
+            <Route path={FOR_PREFIX} element={<NamespacePicker />} />
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route
@@ -48,7 +66,19 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/:namespace" element={<NamespaceLayout />}>
+            <Route path="/settings" element={<SettingsLayout />}>
+              <Route element={<Layout />}>
+                <Route
+                  index
+                  element={
+                    <ProtectedRoute requireSpaceAdmin>
+                      <AdminSettings />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
+            </Route>
+            <Route path={`${FOR_PREFIX}/:namespace`} element={<NamespaceLayout />}>
               <Route element={<Layout />}>
                 <Route index element={<Home />} />
                 <Route path="propuestas/:id" element={<ProposalDetail />} />
@@ -76,11 +106,15 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="configuracion"
+                  element={<Navigate to="/settings" replace />}
+                />
               </Route>
             </Route>
             <Route
               path="*"
-              element={<Navigate to={`/${getLastNamespace()}`} replace />}
+              element={<Navigate to={defaultNamespacePath()} replace />}
             />
           </Routes>
         </BrowserRouter>
