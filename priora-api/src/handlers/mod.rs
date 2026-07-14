@@ -6,6 +6,7 @@ mod membership;
 mod namespaces;
 mod proposals;
 mod rankings;
+mod settings;
 mod stats;
 mod uploads;
 mod users;
@@ -148,6 +149,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/users/me", get(users::get_me).patch(users::update_me))
         .route("/users", get(users::list))
         .route("/users/{id}/role", patch(users::update_role))
+        .route("/settings", get(settings::get).patch(settings::update))
         .route("/categories", get(categories::list))
         .route("/namespaces", get(namespaces::list).post(namespaces::create))
         .route(

@@ -51,6 +51,12 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ role }),
     }),
+  platformSettings: () => request('/api/settings'),
+  updatePlatformSettings: (data) =>
+    request('/api/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
   namespaces: (opts = {}) => {
     const params = new URLSearchParams();
     if (opts.includeHidden) params.set('include_hidden', 'true');

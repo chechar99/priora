@@ -10,6 +10,7 @@ import {
 } from '@dnd-kit/core';
 import {
   arrayMove,
+  defaultAnimateLayoutChanges,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -23,9 +24,28 @@ import StatusBadge from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../context/NamespaceContext';
 
+/** dnd-kit only animates after a drag by default; enable it for arrow reorders too. */
+function animateLayoutChanges(args) {
+  if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return false;
+  }
+  const { isSorting, wasDragging } = args;
+  if (isSorting || wasDragging) {
+    return defaultAnimateLayoutChanges(args);
+  }
+  return true;
+}
+
+const sortableTransition = {
+  duration: 220,
+  easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+};
+
 function SortableItem({ item, position, isFirst, isLast, onMove }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
+    animateLayoutChanges,
+    transition: sortableTransition,
   });
   const style = {
     transform: CSS.Transform.toString(transform),

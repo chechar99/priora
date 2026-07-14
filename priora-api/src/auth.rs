@@ -69,6 +69,22 @@ pub async fn resolve_user_ref(pool: &SqlitePool, reference: &str) -> AppResult<U
     }
 }
 
+/// Roles allowed as the platform default for newly registered users.
+pub const VALID_DEFAULT_ROLES: &[&str] = &["regular", "proponent"];
+
+pub async fn get_default_user_role(pool: &SqlitePool) -> AppResult<String> {
+    let role = sqlx::query_scalar::<_, String>(
+        "SELECT default_user_role FROM platform_settings WHERE id = 1",
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(match role {
+        Some(r) if VALID_DEFAULT_ROLES.contains(&r.as_str()) => r,
+        _ => "proponent".to_string(),
+    })
+}
+
 pub async fn find_or_create_oauth_user(
     pool: &SqlitePool,
     google_sub: &str,
@@ -84,17 +100,19 @@ pub async fn find_or_create_oauth_user(
         return Ok(user);
     }
 
+    let role = get_default_user_role(pool).await?;
     let id = Uuid::new_v4().to_string();
     let now = Utc::now();
     sqlx::query(
         "INSERT INTO users (id, google_sub, email, name, picture_url, role, profile_complete, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'regular', 0, ?, ?)",
+         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)",
     )
     .bind(&id)
     .bind(google_sub)
     .bind(email)
     .bind(name)
     .bind(picture_url)
+    .bind(&role)
     .bind(now)
     .bind(now)
     .execute(pool)
@@ -110,7 +128,10 @@ pub async fn dev_login_user(
     role: Option<&str>,
 ) -> AppResult<User> {
     let google_sub = format!("dev:{email}");
-    let role = role.unwrap_or("regular");
+    let role = match role {
+        Some(r) => r.to_string(),
+        None => get_default_user_role(pool).await?,
+    };
 
     if let Some(user) = sqlx::query_as::<_, User>("SELECT * FROM users WHERE google_sub = ?")
         .bind(&google_sub)
@@ -119,7 +140,7 @@ pub async fn dev_login_user(
     {
         if user.role != role {
             sqlx::query("UPDATE users SET role = ?, updated_at = ? WHERE id = ?")
-                .bind(role)
+                .bind(&role)
                 .bind(Utc::now())
                 .bind(&user.id)
                 .execute(pool)
@@ -139,7 +160,7 @@ pub async fn dev_login_user(
     .bind(&google_sub)
     .bind(email)
     .bind(name)
-    .bind(role)
+    .bind(&role)
     .bind(now)
     .bind(now)
     .execute(pool)

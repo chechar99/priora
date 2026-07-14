@@ -361,6 +361,80 @@ async fn space_admin_lista_miembros(world: &mut BddWorld) {
     lista_miembros(world, "space_admin", None).await;
 }
 
+#[when("el administrador consulta la configuración de plataforma")]
+async fn admin_consulta_settings(world: &mut BddWorld) {
+    let tok = world.token("admin");
+    world.request("GET", "/api/settings", Some(&tok), None).await;
+}
+
+#[when("el usuario regular consulta la configuración de plataforma")]
+async fn regular_consulta_settings(world: &mut BddWorld) {
+    let tok = world.token("regular");
+    world.request("GET", "/api/settings", Some(&tok), None).await;
+}
+
+#[when(regex = r#"^el administrador cambia el rol por defecto de registro a "([^"]+)"$"#)]
+async fn admin_cambia_default_role(world: &mut BddWorld, role: String) {
+    let tok = world.token("admin");
+    world
+        .request(
+            "PATCH",
+            "/api/settings",
+            Some(&tok),
+            Some(json!({ "default_user_role": role })),
+        )
+        .await;
+}
+
+#[when(regex = r#"^el usuario regular intenta cambiar el rol por defecto de registro a "([^"]+)"$"#)]
+async fn regular_intenta_cambiar_default_role(world: &mut BddWorld, role: String) {
+    let tok = world.token("regular");
+    world
+        .request(
+            "PATCH",
+            "/api/settings",
+            Some(&tok),
+            Some(json!({ "default_user_role": role })),
+        )
+        .await;
+}
+
+#[when("un usuario nuevo se registra sin rol explícito")]
+async fn usuario_nuevo_sin_rol(world: &mut BddWorld) {
+    let email = format!("nuevo-{}@priora.local", Uuid::new_v4());
+    world
+        .request(
+            "POST",
+            "/api/auth/dev-login",
+            None,
+            Some(json!({
+                "email": email,
+                "name": "Usuario Nuevo",
+            })),
+        )
+        .await;
+}
+
+#[then(regex = r#"^el rol por defecto de registro es "([^"]+)"$"#)]
+async fn default_role_es(world: &mut BddWorld, role: String) {
+    let json = world.last_json.as_ref().expect("json");
+    assert_eq!(
+        json["default_user_role"].as_str(),
+        Some(role.as_str()),
+        "unexpected default_user_role: {json}"
+    );
+}
+
+#[then(regex = r#"^el usuario nuevo tiene rol "([^"]+)"$"#)]
+async fn usuario_nuevo_tiene_rol(world: &mut BddWorld, role: String) {
+    let json = world.last_json.as_ref().expect("json");
+    assert_eq!(
+        json["user"]["role"].as_str(),
+        Some(role.as_str()),
+        "unexpected user role: {json}"
+    );
+}
+
 async fn lista_miembros(world: &mut BddWorld, who: &str, status: Option<&str>) {
     let token = world.token(who);
     let path = if let Some(s) = status {

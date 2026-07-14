@@ -342,6 +342,18 @@ pub struct UpdateRoleRequest {
     pub role: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct PlatformSettings {
+    pub id: i64,
+    pub default_user_role: String,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdatePlatformSettingsRequest {
+    pub default_user_role: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CreateProposalRequest {
     pub title: String,

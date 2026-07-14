@@ -43,3 +43,22 @@ Característica: Configuración del espacio
     Y puede administrar el espacio
     Cuando el admin de espacio lista los miembros
     Entonces la respuesta es exitosa
+
+  Escenario: Rol por defecto de registro es proponente
+    Cuando el administrador consulta la configuración de plataforma
+    Entonces la respuesta es exitosa
+    Y el rol por defecto de registro es "proponent"
+
+  Escenario: Admin cambia el rol por defecto de registro
+    Cuando el administrador cambia el rol por defecto de registro a "regular"
+    Entonces la respuesta es exitosa
+    Y el rol por defecto de registro es "regular"
+    Cuando un usuario nuevo se registra sin rol explícito
+    Entonces la respuesta es exitosa
+    Y el usuario nuevo tiene rol "regular"
+
+  Escenario: Usuario regular no puede cambiar la configuración de plataforma
+    Cuando el usuario regular consulta la configuración de plataforma
+    Entonces la respuesta es prohibida
+    Cuando el usuario regular intenta cambiar el rol por defecto de registro a "regular"
+    Entonces la respuesta es prohibida

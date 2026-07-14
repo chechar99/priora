@@ -90,6 +90,7 @@ Caddy global: `~/.config/caddy/Caddyfile` (snippet del repo: `Caddyfile.snippet`
 
 Estados de propuesta en DB/API: `activa`, `en_analisis`, `rechazada`.  
 Roles globales: `regular`, `proponent`, `admin`.  
+Rol por defecto al registrarse: configurable (`platform_settings.default_user_role`, default `proponent`; solo `regular` o `proponent`).  
 Roles por espacio (`namespace_members.role`): `regular`, `proponent`, `space_admin`.  
 Estados de membresía: `pending`, `active`, `disabled`, `rejected`.
 
@@ -118,6 +119,7 @@ src/
     ├── rankings.rs
     ├── stats.rs       # Dashboard del espacio
     ├── activity.rs    # Historial del usuario
+    ├── settings.rs    # Configuración de plataforma (rol por defecto)
     └── uploads.rs
 migrations/           # SQLx migrate
 ```
@@ -130,6 +132,7 @@ Prefijo: `/api`. Health: `GET /api/health`.
 |------|-------------------|
 | Auth | `GET /auth/google`, `POST /auth/dev-login`, `GET /auth/impersonate?priora_as=`, `POST /auth/stop-impersonate`, `GET /auth/me` |
 | Usuarios | `GET/PATCH /users/me`, `GET /users` (admin), `PATCH /users/:id/role` (admin) |
+| Settings | `GET/PATCH /settings` (admin) — `default_user_role` (`regular` \| `proponent`) |
 | Namespaces | `GET/POST /namespaces` (POST admin), `GET/PATCH /namespaces/:slug` |
 | Invitaciones | `GET/POST /{ns}/invite` (managers), `POST /{ns}/membership/accept-invite` |
 | Membresía | `GET /{ns}/membership/me`, `POST /{ns}/membership/request`, `GET /{ns}/members`, `PATCH /{ns}/members/:user_id` |

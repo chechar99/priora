@@ -88,6 +88,7 @@ Usuario con control total sobre el ciclo de vida de las propuestas y la comunida
 | Cambiar estado de cualquier propuesta | Sí |
 | Asignar o cambiar tracker | Sí |
 | Promover usuarios a Proponente / Admin | Sí |
+| Configurar rol por defecto al registrarse | Sí |
 | Crear espacios y asignar admin de espacio | Sí |
 | Activar aprobación de miembros por espacio | Sí |
 | Compartir / regenerar link de invitación del espacio | Sí |
@@ -156,7 +157,7 @@ Crecimiento social: un admin comparte un link; el vecino entra sin depender de S
 
 1. El usuario accede a Priora y pulsa **Iniciar sesión con Google**.
 2. El frontend redirige al flujo OAuth 2.0 de Google (autorización delegada al backend o al proveedor configurado).
-3. Tras autenticación exitosa, el backend crea o recupera el registro de usuario vinculado al `sub` (ID único) de Google.
+3. Tras autenticación exitosa, el backend crea o recupera el registro de usuario vinculado al `sub` (ID único) de Google. Los usuarios nuevos reciben el rol global configurado en `platform_settings.default_user_role` (por defecto **Proponente**).
 4. Si el usuario **no tiene dirección registrada**, se le redirige obligatoriamente al formulario de **completar perfil** antes de acceder al resto de la aplicación.
 5. Si el perfil está completo, se redirige a la **página principal** (listado de propuestas).
 
@@ -554,6 +555,7 @@ Ruta: `/settings` (usa el último espacio visitado).
 - Toggle `require_member_approval`.
 - **Invitar vecinos:** mostrar URL de invitación, copiar texto para compartir, regenerar código.
 - Cola de autorizaciones pendientes y gestión de miembros (si aplica).
+- **Roles globales** (solo admin de plataforma): listado de usuarios, cambio de rol, y **rol por defecto al registrarse** (`regular` o `proponent`).
 
 ### 8.7 Onboarding / tutorial
 
@@ -663,6 +665,15 @@ Prefijo: `/api`. Las rutas de propuestas, comentarios, ranking y membresía van 
 | GET | `/users/me` | Perfil completo |
 | GET | `/users` | Listado (admin) |
 | PATCH | `/users/:id/role` | Cambiar rol global (admin) |
+
+#### Configuración de plataforma
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/settings` | Lectura (admin): `default_user_role` |
+| PATCH | `/settings` | Actualizar (admin): `default_user_role` (`regular` \| `proponent`) |
+
+Los usuarios nuevos (primer login OAuth) reciben `default_user_role` (por defecto `proponent`). Configurable en Configuración → Roles globales.
 
 #### Namespaces e invitaciones
 
@@ -832,7 +843,7 @@ cd priora-api && cargo test --test bdd
 | Feature | Escenarios cubiertos |
 |---------|----------------------|
 | `tests/features/membership_approval.feature` | Participación libre sin aprobación; bloqueo de comentarios con aprobación; solicitud + priorización sin efecto + aprobación; rechazo; aprobación por admin de espacio |
-| `tests/features/admin_settings.feature` | `membership/me` para admin y regular; toggle de aprobación; listado de miembros (admin sí / regular no); admin de espacio puede administrar |
+| `tests/features/admin_settings.feature` | `membership/me` para admin y regular; toggle de aprobación; listado de miembros (admin sí / regular no); admin de espacio puede administrar; rol por defecto de registro (lectura, cambio, permiso denegado) |
 
 ---
 

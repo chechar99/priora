@@ -12,6 +12,11 @@ const ROLE_OPTIONS = [
   { value: 'admin', label: 'Administrador' },
 ];
 
+const DEFAULT_ROLE_OPTIONS = [
+  { value: 'regular', label: 'Usuario regular' },
+  { value: 'proponent', label: 'Proponente' },
+];
+
 const SPACE_ROLE_OPTIONS = [
   { value: 'regular', label: 'Regular' },
   { value: 'proponent', label: 'Proponente' },
@@ -981,12 +986,18 @@ function NamespacesTab() {
 function UsersTab({ currentUser }) {
   const queryClient = useQueryClient();
   const [roleError, setRoleError] = useState('');
+  const [settingsError, setSettingsError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   const { data: users = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => api.users(),
+  });
+
+  const { data: settings, isLoading: loadingSettings } = useQuery({
+    queryKey: ['platform-settings'],
+    queryFn: () => api.platformSettings(),
   });
 
   const updateRole = useMutation({
@@ -996,6 +1007,16 @@ function UsersTab({ currentUser }) {
       setRoleError('');
     },
     onError: (e) => setRoleError(e.message),
+  });
+
+  const updateDefaultRole = useMutation({
+    mutationFn: (default_user_role) =>
+      api.updatePlatformSettings({ default_user_role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['platform-settings'] });
+      setSettingsError('');
+    },
+    onError: (e) => setSettingsError(e.message),
   });
 
   const filtered = useMemo(() => {
@@ -1025,6 +1046,33 @@ function UsersTab({ currentUser }) {
       <p className="section-hint">
         Roles globales de plataforma. Para roles por espacio usá la pestaña Miembros.
       </p>
+
+      <div className="admin-default-role">
+        <h3>Rol por defecto al registrarse</h3>
+        <p className="section-hint">
+          Los usuarios nuevos (primer inicio de sesión) reciben este rol global.
+        </p>
+        {settingsError && <p className="error">{settingsError}</p>}
+        {loadingSettings ? (
+          <p className="muted">Cargando…</p>
+        ) : (
+          <label className="admin-inline-field">
+            <span className="sr-only">Rol por defecto</span>
+            <select
+              className="role-select"
+              value={settings?.default_user_role || 'proponent'}
+              disabled={updateDefaultRole.isPending}
+              onChange={(e) => updateDefaultRole.mutate(e.target.value)}
+            >
+              {DEFAULT_ROLE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {roleError && <p className="error">{roleError}</p>}
 
